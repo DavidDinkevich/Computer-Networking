@@ -23,7 +23,7 @@ while True:
     # Wait and listen for info, max data size 1024
     data, addr = s.recvfrom(1024)
     # Print what we received
-    print("Server: ", str(data), addr)
+    print("Server: ", data, addr)
     # Return exactly what we received
     s.sendto(data, addr)
     
