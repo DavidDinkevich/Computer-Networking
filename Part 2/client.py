@@ -24,9 +24,9 @@ if __name__ == "__main__":
     num_expected_args = 3
     
     # Check that we got the right num of args
-    while len(args_arr) != num_expected_args:
-        inp = input('Please enter exactly three arguments: ')
-        args_arr = inp.split(' ')
+    if len(args_arr) != num_expected_args:
+        print('Please enter exactly three arguments: ')
+        sys.exit(1) # Exit
     
     # Extract arguments    
     ip = args_arr[0]
@@ -48,7 +48,6 @@ if __name__ == "__main__":
         while data == None or not verify_message(message, data):
             # Trying to Send a message
             try:
-                print('Message number',counter,'sent')
                 s.sendto(message, (ip, port_num))
             
                 #Get return message
@@ -57,8 +56,6 @@ if __name__ == "__main__":
                 #be sent again
                 data, addr = s.recvfrom(1024)
             
-                #print(str(data), addr)
-                print('Verified messege:',data)
             except socket.timeout:
                 continue
 

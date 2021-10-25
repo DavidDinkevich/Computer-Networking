@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 """
 Created on Sun Oct 24 21:12:17 2021
-
 @author: Roei Gehasi and David Dinkevich
 """
 
@@ -23,16 +22,19 @@ while True:
         # Wait and listen for info, max data size 1024
         data, addr = s.recvfrom(1024)
         current_number=int.from_bytes(data[0:10],'little')
-        print(current_number)
         if current_number == previous_number+1:
+            #print(str(data))
             # Print what we received
-            print("Server: ", data, addr)
+            lines = str(data[10:])[2:-1].split('\\n')
+            for i in range(len(lines)):
+                if i == len(lines) - 1:
+                    print(lines[i], end='', flush=True)
+                else:
+                    print(lines[i], flush=True)
+            # Update
             previous_number=current_number
+            previous_data=data
             # Return exactly what we received
             s.sendto(data, addr)
-            previous_data=data
         else:
             s.sendto(previous_data,addr)
-            
-
-    
