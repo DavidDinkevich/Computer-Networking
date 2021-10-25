@@ -26,6 +26,7 @@ def delayed(data, addr):
     delay = random.randrange(5000) / 1000
     print(f'Delaying! for {delay} seconds...')
     sleep(delay)
+    print(delay)
     send(data, addr)
 
 x = datetime.now()
@@ -70,7 +71,7 @@ while True:
             if len(data) > 100:
                 print('Dropped! too big...')
             else:
-                print('Dropped! randomly... ', str(drop))
+                print('Dropped! randomly... ', str(drop),data[0:10],addr)
 
     except Exception:
         traceback.print_exc()

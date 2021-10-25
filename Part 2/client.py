@@ -6,12 +6,10 @@ import socket
 
 
 def read_unit_from_file(file, unit_id):
-    print("Called")
     # Read 90 bytes from the file
     data = file.read(90)
     # Convert counter to bytes
     id_str = unit_id.to_bytes(10, 'little')
-    print(id_str)
     # Put together package
     return id_str + data
 
@@ -40,7 +38,7 @@ if __name__ == "__main__":
     
     # Open socket
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    
+    s.settimeout(15)
     counter = 0 # Tracks message ID
     message = read_unit_from_file(file, counter)
     # While we can still extract units of data from the file
@@ -48,12 +46,21 @@ if __name__ == "__main__":
         # Keep sending messages until it is received successfully
         data = None
         while data == None or not verify_message(message, data):
-            # Send message
-            s.sendto(message, (ip, port_num))
+            # Trying to Send a message
+            try:
+                print('Message number',counter,'sent')
+                s.sendto(message, (ip, port_num))
             
-            # Get return message
-            data, addr = s.recvfrom(1024)
-            #print(str(data), addr)
+                #Get return message
+                #we define a new protocol which says:
+                #if the message didnt arrive in atmost 500 MS, the message will
+                #be sent again
+                data, addr = s.recvfrom(1024)
+            
+                #print(str(data), addr)
+                print('Verified messege:',data)
+            except socket.timeout:
+                continue
 
         # Increase message ID
         counter += 1
