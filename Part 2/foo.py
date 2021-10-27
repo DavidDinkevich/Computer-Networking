@@ -1,4 +1,4 @@
-from socket import socket,AF_INET,SOCK_DGRAM
+from socket import socket, AF_INET, SOCK_DGRAM
 import sys, random, traceback
 from datetime import datetime
 from threading import Thread
@@ -10,9 +10,9 @@ ALICE_PORT = int(sys.argv[3])
 ALICE_ADDR = (ALICE_IP, ALICE_PORT)
 MODE = int(sys.argv[4])
 
-
-s = socket(AF_INET,SOCK_DGRAM)
+s = socket(AF_INET, SOCK_DGRAM)
 s.bind(('', MY_PORT))
+
 
 def send(data, addr):
     if addr != ALICE_ADDR:
@@ -22,12 +22,14 @@ def send(data, addr):
         s.sendto(data, BOB_ADDR)
         print(f'Forwarded {data} from {addr} to {BOB_ADDR}')
 
+
 def delayed(data, addr):
     delay = random.randrange(5000) / 1000
     print(f'Delaying! for {delay} seconds...')
     sleep(delay)
     print(delay)
     send(data, addr)
+
 
 x = datetime.now()
 
@@ -41,12 +43,11 @@ if MODE == 1:
 
 if (MODE == 2) or (MODE == 4):
     DROP_RATE = random.randrange(99)
-    print(f'Dropping {100-DROP_RATE}%')
-    
+    print(f'Dropping {100 - DROP_RATE}%')
+
 if (MODE == 3) or (MODE == 4):
     DELAY_RATE = random.randrange(100)
-    print(f'Delaying {100-DELAY_RATE}%')
-
+    print(f'Delaying {100 - DELAY_RATE}%')
 
 data, BOB_ADDR = s.recvfrom(101)
 addr = BOB_ADDR
@@ -60,8 +61,8 @@ while True:
 
             delay = random.randrange(100)
             if (delay > DELAY_RATE):
-                print(f'Good night.... {delay} {DELAY_RATE}')                
-                t = Thread(target = delayed, args = (data, addr, ))
+                print(f'Good night.... {delay} {DELAY_RATE}')
+                t = Thread(target=delayed, args=(data, addr,))
                 t.start()
             else:
                 print(f'Yay, no sleep.... {delay} {DELAY_RATE}')
@@ -71,10 +72,10 @@ while True:
             if len(data) > 100:
                 print('Dropped! too big...')
             else:
-                print('Dropped! randomly... ', str(drop),data[0:10],addr)
+                print('Dropped! randomly... ', str(drop), data[0:10], addr)
 
     except Exception:
         traceback.print_exc()
-        
+
     finally:
-        data, addr = s.recvfrom(100)        
+        data, addr = s.recvfrom(100)
