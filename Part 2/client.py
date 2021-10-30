@@ -5,6 +5,46 @@ import sys
 import socket
 
 
+def validate_input(args):
+    # Check that we got the right num of args
+    num_expected_args = 3
+    if len(args) != num_expected_args:
+        print('Please enter exactly three arguments: ')
+        sys.exit(1)  # Exit
+
+    # VALIDATE GIVEN INPUT
+    bad_input = False
+    
+    # Validate IP
+    try:
+        socket.inet_aton(args[0])
+        # If we got here, IP is legal
+    except socket.error:
+        # IP is illegal
+        print('Invalid IP address')
+        bad_input = True
+
+    # Validate port number
+    # Checks if user inputted port number is valid
+    if not args[1].isdigit() or int(args[1]) < 1 or int(args[1]) > 65535:
+        print("Invalid port number")
+        bad_input = True
+        
+    # Validate file name
+    file = None
+    try:
+        file = open(args[2], 'rb')
+        file.close()
+    except:
+        print('Given file does not exist')
+        bad_input = True        
+    
+    if bad_input:
+        print('Try executing the program again. Terminating...')
+        sys.exit(1)
+    
+
+
 def read_unit_from_file(file, unit_id):
     # Read 90 bytes from the file
     data = file.read(90)
@@ -19,14 +59,9 @@ def verify_message(original, received):
 
 
 if __name__ == "__main__":
-    # Get program arguments
+    # Get program arguments (ip, port_num, file_name)
     args_arr = sys.argv[1:]
-    num_expected_args = 3
-
-    # Check that we got the right num of args
-    if len(args_arr) != num_expected_args:
-        print('Please enter exactly three arguments: ')
-        sys.exit(1)  # Exit
+    validate_input(args_arr) # Validate input
 
     # Extract arguments    
     ip = args_arr[0]
