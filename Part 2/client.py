@@ -59,8 +59,9 @@ def verify_message(original, received):
 
 
 if __name__ == "__main__":
-    # Get program arguments (ip, port_num, file_name)
+    # Get program arguments (file_name, port_num, ip)
     args_arr = sys.argv[1:]
+    args_arr.reverse()
     validate_input(args_arr) # Validate input
 
     # Extract arguments    
