@@ -12,13 +12,20 @@ lang = {
     "movfl":    (2, 0),
     "movdir":   (2, 0),
     "rmf":      (1, 0),
-    "rmdir":    (1, 0) # Recursive    
+    "rmdir":    (1, 0) # Recursive
 }
 
 def sendToken(socket, cmd, args):
-    
     if cmd == "su":
         msg = cmd + SEP_CHAR + args[0]
         socket.send(msg.encode())
     elif cmd == "pull":
         pass
+def getToken(data):
+   str_data= data.decode('utf8')
+   str_data.split(SEP_CHAR)
+
+
+
+
+
