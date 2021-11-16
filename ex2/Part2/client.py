@@ -29,6 +29,7 @@ class OnMyWatch:
         self.observer.start()
         try:
             while True:
+                open_connection()
                 time.sleep(5)
         except:
             self.observer.stop()
@@ -44,7 +45,7 @@ class Handler(FileSystemEventHandler):
     @staticmethod
     def on_any_event(event):
         open_connection()
-        process_upload_queue()
+        process_dequeue()
         relative_path = event.src_path[len(MY_DIR) + 1:]
         print('SUBJECT FILE: ' + relative_path)
         # in case client modified something in its files
@@ -74,6 +75,8 @@ class Handler(FileSystemEventHandler):
             print("Watchdog received created event - % s." % relative_path)
         elif event.event_type == 'moved':
             pass
+        elif event.event_type == 'removed':
+            lib.sendToken(socket, 'rmdir', [relative_path])
         close_connection()
 
 
@@ -92,7 +95,7 @@ def file_is_not_hidden(file_name):
 '''
 
 
-def process_upload_queue():
+def process_dequeue():
     while len(file_upload_queue) > 0:
         (abs_path, rel_path) = file_upload_queue[0]
         print('Checking if file is open:', abs_path)
@@ -153,7 +156,7 @@ def pull_request():
             create_dir(path_token)
         elif command_token == 'mkfile':
             last_file_created = os.path.join(MY_DIR, path_token)
-            lib.creat_file(MY_DIR, path_token)
+            lib.create_file(MY_DIR, path_token)
         elif command_token == 'data':
             lib.write_data(last_file_created, path_token.encode('utf8'))
 

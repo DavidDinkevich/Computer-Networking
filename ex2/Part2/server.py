@@ -9,7 +9,13 @@ import time
 
 SERVER_DIR = "server_dir"
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-server.bind(('', 12345))
+##this is about to be deleted when we submit
+while True:
+    try:
+        server.bind(('', 12345))
+        break
+    except:
+        time.sleep(3)
 server.listen()
 client_buff = []
 account_map = {}
@@ -27,11 +33,10 @@ def create_dir(path_name):
 
 
 def update_accounts_map(id, client_address):
-    if id in account_map:
-        account_map[id].append((client_address[0], client_address[1]))
+    if id in account_map and client_address not in account_map[id]:
+        account_map[id].append(client_address)
     else:
-        account_map[id] = []
-        account_map[id] = [(client_address[0], client_address[1],)]
+        account_map[id] = [client_address]
 
 
 # need to adjust client to its file when client is making any changes.
@@ -74,16 +79,19 @@ def process_command(command, client_socket, client_address):
         client_buff, file_name = lib.getToken(client_socket, client_buff)
         file_path = os.path.join(client_id, file_name)
         last_file_created = os.path.join(SERVER_DIR, file_path)
-        lib.creat_file(SERVER_DIR, file_name)
+        lib.create_file(SERVER_DIR, file_path)
     elif command_token == 'data':
-        client_buff, data = lib.getToken(client_socket, client_buff)
-        lib.write_data(last_file_created, data.encode('utf8'))
+        client_buff, data = lib.getToken(client_socket, client_buff, False)
+        lib.write_data(last_file_created, data)
+    elif command_token == 'rmdir':
+        pass
 
 
 def find_id(client_adress):
     for client_id in account_map.keys():
-        if account_map[client_id][0] == client_adress[0]:
-            return client_id
+        for client_info in account_map[client_id]:
+            if client_info[0] == client_adress[0]:
+                return client_id
     return None
 
 
