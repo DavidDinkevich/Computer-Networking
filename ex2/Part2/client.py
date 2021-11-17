@@ -143,7 +143,7 @@ def on_start_up(s, buff):
     lib.sendToken(my_socket, 'fin', [])
     my_socket.close()
 
-def pull_request():
+def send_list_request():
     global my_buff, last_file_created
 
     print('Sending list request:')
@@ -166,9 +166,27 @@ def pull_request():
     my_dirs, my_files = lib.get_dirs_and_files(MY_DIR)
     to_remove, to_add = lib.diff(my_dirs, my_files, server_dirs, server_files)
     print('Must delete: ', to_remove)
+    # Delete everything not still in server
+    for item in to_remove:
+        local_path = os.path.join(MY_DIR, item)
+        # Check if exists, just in case
+        if not os.path.exists(local_path):
+            continue
+        # Delete if file
+        if os.path.isfile(local_path):
+            os.remove(local_path)
+        else: # Delete if directory
+            os.rmdir(local_path)
+            
+    # Return dirs/files that we need to add
+    return to_add
+
+def pull_request():
+    to_add = send_list_request()
+    global my_buff, last_file_created
+        
     # Now let's request a pull, and ignore everything that we already have
     
-    ignore_file = False
     lib.sendToken(my_socket, 'pull', [client_id])
     while True:
         my_buff, command_token = lib.getToken(my_socket, my_buff)
@@ -177,17 +195,15 @@ def pull_request():
         my_buff, path_token = lib.getToken(my_socket, my_buff)
         if command_token == 'mkdir' and path_token in to_add:
             create_dir(path_token)
-            ignore_file = False
         elif command_token == 'mkfile':
             if path_token in to_add:
-                ignore_file = False
                 last_file_created = os.path.join(MY_DIR, path_token)
                 lib.create_file(MY_DIR, path_token)
             else:
-                ignore_file = True
-        elif command_token == 'data' and not ignore_file:
+                # Don't want to download file b/c we already have it
+                last_file_created = None
+        elif command_token == 'data' and last_file_created is not None:
             lib.write_data(last_file_created, path_token.encode('utf8'))
-
 
 ##need to move into lib library
 def create_dir(path_name):
