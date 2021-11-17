@@ -15,6 +15,7 @@ while True:
         server.bind(('', 12345))
         break
     except:
+        print("Couldn't open server, trying again")
         time.sleep(3)
 server.listen()
 client_buff = []
@@ -48,6 +49,19 @@ def process_command(command, client_socket, client_address):
         update_accounts_map(client_id, client_address)
         lib.sendToken(client_socket, client_id, [])
         creat_dir(client_id)
+    elif command == 'list':
+        print('Answering list request')
+        client_buff, client_id = lib.getToken(client_socket, client_buff)
+        client_dir = os.path.join(SERVER_DIR, str(client_id))
+        # Get all client's directories and files
+        dirs, files = lib.get_dirs_and_files(client_dir)
+        # Send each as individual token
+        for directory in dirs:
+            lib.sendToken(client_socket, 'mkdir', [directory])
+        for file in files:
+            lib.sendToken(client_socket, 'mkfile', [file])
+        # Signal end of data stream
+        lib.sendToken(client_socket, 'eoc', [])
     elif command == 'pull':
         print("entered pull")
         client_buff, client_id = lib.getToken(client_socket, client_buff)

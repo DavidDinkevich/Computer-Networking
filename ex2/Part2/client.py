@@ -143,21 +143,49 @@ def on_start_up(s, buff):
     lib.sendToken(my_socket, 'fin', [])
     my_socket.close()
 
-
 def pull_request():
     global my_buff, last_file_created
-    lib.sendToken(my_socket, 'pull', [client_id])
+
+    print('Sending list request:')
+    # Request that server provide list of dirs and files
+    lib.sendToken(my_socket, 'list', [client_id])
+    server_dirs = []
+    server_files = []
     while True:
         my_buff, command_token = lib.getToken(my_socket, my_buff)
         if command_token == 'eoc' or command_token is None:
             break
         my_buff, path_token = lib.getToken(my_socket, my_buff)
         if command_token == 'mkdir':
-            create_dir(path_token)
+            server_dirs.append(path_token)
         elif command_token == 'mkfile':
-            last_file_created = os.path.join(MY_DIR, path_token)
-            lib.create_file(MY_DIR, path_token)
-        elif command_token == 'data':
+            server_files.append(path_token)
+    
+    # We now have a full list of server's dirs and files.
+    # Let's compare.
+    my_dirs, my_files = lib.get_dirs_and_files(MY_DIR)
+    to_remove, to_add = lib.diff(my_dirs, my_files, server_dirs, server_files)
+    print('Must delete: ', to_remove)
+    # Now let's request a pull, and ignore everything that we already have
+    
+    ignore_file = False
+    lib.sendToken(my_socket, 'pull', [client_id])
+    while True:
+        my_buff, command_token = lib.getToken(my_socket, my_buff)
+        if command_token == 'eoc' or command_token is None:
+            break
+        my_buff, path_token = lib.getToken(my_socket, my_buff)
+        if command_token == 'mkdir' and path_token in to_add:
+            create_dir(path_token)
+            ignore_file = False
+        elif command_token == 'mkfile':
+            if path_token in to_add:
+                ignore_file = False
+                last_file_created = os.path.join(MY_DIR, path_token)
+                lib.create_file(MY_DIR, path_token)
+            else:
+                ignore_file = True
+        elif command_token == 'data' and not ignore_file:
             lib.write_data(last_file_created, path_token.encode('utf8'))
 
 
