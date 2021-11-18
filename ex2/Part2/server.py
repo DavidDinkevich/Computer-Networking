@@ -76,12 +76,11 @@ def process_command(command, client_socket, client_address):
                 # dir_name = deep_dir
                 # root server/id/Dirdir
                 original_path = os.path.join(root, item)
-                path_item = os.path.join(root[len(client_dir_path) + 1:], item)
+                relative_path = os.path.join(root[len(client_dir_path) + 1:], item)
                 if item in d_names:
-                    lib.sendToken(client_socket, 'mkdir', [path_item])
+                    lib.sendToken(client_socket, 'mkdir', [relative_path])
                 else:
-                    lib.sendToken(client_socket, 'mkfile', [path_item])
-                    lib.send_data(client_socket, original_path)
+                    lib.send_data(client_socket, original_path,relative_path)
         lib.sendToken(client_socket, 'eoc', [])
     elif command_token == 'mkdir':
         client_id = find_id(client_address)

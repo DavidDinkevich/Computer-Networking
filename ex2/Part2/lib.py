@@ -59,20 +59,32 @@ def create_file(path_name, file_name):
     f.close()
 
 
-def send_data(socket, file_path):
-    with open(file_path, 'rb') as f:
+
+'''
+sending data from client to server and vice versa
+we assume that file path is the full path of the file(includes the server/client's path accordingly)
+'''
+
+
+def send_data(my_socket, full_file_path, relative_path):
+    sendToken(my_socket, 'mkfile', [relative_path])
+    # modtime is the last time the file has been modified
+    modtime = os.stat(full_file_path)[7]
+    #sendToken(my_socket, 'modtime', [str(modtime)])
+    with open(full_file_path, 'rb') as f:
         data = f.read(1024)
-        sendToken(socket, 'data', [])
-        while data:
-            sendToken(socket, 'data', [data], False)
-            data = f.read(1024)
+        if len(data) > 0:
+            sendToken(my_socket, 'data', [])
+            while data:
+                sendToken(my_socket, 'data', [data], False)
+                data = f.read(1024)
 
 
 # get the bytes from server/client and write them into an existed file
 def write_data(file_path, data):
     with open(file_path, 'r+b') as f:
         f.write(data)
-        
+
 '''
 Returns two arrays, the first containing all of the subdirectories
 (of all depths) of top_root, and the second containing all of the files
@@ -105,9 +117,9 @@ contains and dir1 does not contain (starting with directories, and then
 files)
 '''
 def diff(dir1_dirs, dir1_files, dir2_dirs, dir2_files):
-    
-    to_remove = list(set(dir1_files) - set(dir2_files)) + list(set(dir1_dirs) - set(dir2_dirs))    
+
+    to_remove = list(set(dir1_files) - set(dir2_files)) + list(set(dir1_dirs) - set(dir2_dirs))
     to_add = list(set(dir2_dirs) - set(dir1_dirs)) + list(set(dir2_files) - set(dir1_files))
-    
+
     return to_remove, to_add
 

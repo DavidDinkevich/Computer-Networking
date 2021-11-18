@@ -69,8 +69,7 @@ class Handler(FileSystemEventHandler):
                         print('File is open, adding to queue')
                         file_upload_queue.append((event.src_path, relative_path))
                     else:
-                        lib.sendToken(my_socket, 'mkfile', [relative_path])
-                        lib.send_data(my_socket, relative_path)
+                        lib.send_data(my_socket,event.src_path, relative_path)
             # Event is created, you can process it now
             print("Watchdog received created event - % s." % relative_path)
         elif event.event_type == 'moved':
@@ -97,11 +96,10 @@ def file_is_not_hidden(file_name):
 
 def process_dequeue():
     while len(file_upload_queue) > 0:
-        (abs_path, rel_path) = file_upload_queue[0]
+        (abs_path, relative_path) = file_upload_queue[0]
         print('Checking if file is open:', abs_path)
-        if is_file_closed(rel_path):
-            lib.sendToken(my_socket, 'mkfile', [rel_path])
-            lib.send_data(my_socket, abs_path)
+        if is_file_closed(relative_path):
+            lib.send_data(my_socket, abs_path,relative_path)
             file_upload_queue.pop(0)
 
 
