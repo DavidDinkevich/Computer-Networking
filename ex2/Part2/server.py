@@ -41,63 +41,102 @@ def update_accounts_map(id, client_address):
 
 
 # need to adjust client to its file when client is making any changes.
-def process_command(command, client_socket, client_address):
+def process_command(command):
     global last_file_created
     global client_buff
     if command == 'su':
-        client_id = generate_id()
-        update_accounts_map(client_id, client_address)
-        lib.sendToken(client_socket, client_id, [])
-        creat_dir(client_id)
+        get_su()
     elif command == 'list':
-        print('Answering list request')
-        client_buff, client_id = lib.getToken(client_socket, client_buff)
-        client_dir = os.path.join(SERVER_DIR, str(client_id))
-        # Get all client's directories and files
-        dirs, files = lib.get_dirs_and_files(client_dir)
-        # Send each as individual token
-        for directory in dirs:
-            lib.sendToken(client_socket, 'mkdir', [directory])
-        for file in files:
-            lib.sendToken(client_socket, 'mkfile', [file])
-        # Signal end of data stream
-        lib.sendToken(client_socket, 'eoc', [])
+        get_list()
     elif command == 'pull':
-        print("entered pull")
-        client_buff, client_id = lib.getToken(client_socket, client_buff)
-        update_accounts_map(client_id, client_address)
-        print("this is client buffer:", client_buff)
-        print("client_id:", client_id)
-        client_dir_path = os.path.join(SERVER_DIR, client_id)
-        for root, d_names, f_names in os.walk(client_dir_path):
-            dirs_then_names = d_names + f_names
-            print("dir names:" + str(d_names) + "file names: " + str(f_names))
-            for item in dirs_then_names:
-                # dir_name = deep_dir
-                # root server/id/Dirdir
-                original_path = os.path.join(root, item)
-                relative_path = os.path.join(root[len(client_dir_path) + 1:], item)
-                if item in d_names:
-                    lib.sendToken(client_socket, 'mkdir', [relative_path])
-                else:
-                    lib.send_data(client_socket, original_path,relative_path)
-        lib.sendToken(client_socket, 'eoc', [])
+        get_pull()
     elif command_token == 'mkdir':
-        client_id = find_id(client_address)
-        client_buff, folder_name = lib.getToken(client_socket, client_buff)
-        folder_path = os.path.join(client_id, folder_name)
-        creat_dir(folder_path)
+        mk_dir()
     elif command_token == 'mkfile':
-        client_id = find_id(client_address)
-        client_buff, file_name = lib.getToken(client_socket, client_buff)
-        file_path = os.path.join(client_id, file_name)
-        last_file_created = os.path.join(SERVER_DIR, file_path)
-        lib.create_file(SERVER_DIR, file_path)
-    elif command_token == 'data':
-        client_buff, data = lib.getToken(client_socket, client_buff, False)
-        lib.write_data(last_file_created, data)
+        rcv_file()
     elif command_token == 'rmdir':
         pass
+
+
+def get_su():
+    client_id = generate_id()
+    update_accounts_map(client_id, client_address)
+    lib.sendToken(client_socket, client_id, [])
+    creat_dir(client_id)
+
+
+def mk_dir():
+    global client_buff
+    client_id = find_id(client_address)
+    client_buff, folder_name = lib.getToken(client_socket, client_buff)
+    folder_path = os.path.join(client_id, folder_name)
+    creat_dir(folder_path)
+
+
+'''
+making list of files from client id's folder 
+'''
+
+
+def get_list():
+    global client_buff
+    print('Answering list request')
+    client_buff, client_id = lib.getToken(client_socket, client_buff)
+    client_dir = os.path.join(SERVER_DIR, str(client_id))
+    # Get all client's directories and files
+    dirs, files = lib.get_dirs_and_files(client_dir)
+    # Send each as individual token
+    for directory in dirs:
+        lib.sendToken(client_socket, 'mkdir', [directory])
+    for file in files:
+        lib.sendToken(client_socket, 'mkfile', [file])
+    # Signal end of data stream
+    lib.sendToken(client_socket, 'eoc', [])
+
+
+'''
+operating pull by client request.
+updating client with server's updated files
+'''
+
+
+def get_pull():
+    global client_buff
+    client_buff, client_id = lib.getToken(client_socket, client_buff)
+    update_accounts_map(client_id, client_address)
+    print("this is client buffer:", client_buff)
+    print("client_id:", client_id)
+    client_dir_path = os.path.join(SERVER_DIR, client_id)
+    for root, d_names, f_names in os.walk(client_dir_path):
+        dirs_then_names = d_names + f_names
+        print("dir names:" + str(d_names) + "file names: " + str(f_names))
+        for item in dirs_then_names:
+            # dir_name = deep_dir
+            # root server/id/Dirdir
+            original_path = os.path.join(root, item)
+            relative_path = os.path.join(root[len(client_dir_path) + 1:], item)
+            if item in d_names:
+                lib.sendToken(client_socket, 'mkdir', [relative_path])
+            else:
+                lib.send_data(client_socket, original_path, relative_path)
+    lib.sendToken(client_socket, 'eoc', [])
+
+
+'''
+func is responsible to make file in client's file on server.
+'''
+
+
+def rcv_file():
+    global client_buff, client_socket, client_address
+    client_id = find_id(client_address)
+    client_buff, file_name = lib.getToken(client_socket, client_buff)
+    temp_path = os.path.join(SERVER_DIR, client_id)
+    file_path = os.path.join(temp_path, file_name)
+    lib.create_file(SERVER_DIR, file_name)
+    # receive data now
+    client_buff, data = lib.getToken(client_socket, client_buff, False)
+    lib.write_data(file_path, data)
 
 
 def find_id(client_adress):
@@ -127,5 +166,5 @@ if __name__ == "__main__":
             if command_token == 'fin' or command_token is None:
                 print("were breaking")
                 break
-            process_command(command_token, client_socket, client_address)
+            process_command(command_token)
         client_socket.close()
