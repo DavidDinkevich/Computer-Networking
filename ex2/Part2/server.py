@@ -88,7 +88,7 @@ def mk_dir():
     client_id = find_id(client_address)
     client_buff, folder_name = lib.getToken(client_socket, client_buff)
     folder_path = os.path.join(client_id, folder_name)
-    creat_dir(folder_path)
+    lib.create_dir(os.path.join(SERVER_DIR, folder_path))
 
 
 '''
@@ -98,8 +98,10 @@ making list of files from client id's folder
 
 def get_list():
     global client_buff
+
     print('Answering list request')
     client_buff, client_id = lib.getToken(client_socket, client_buff)
+    update_accounts_map(client_id,client_address)
     client_dir = os.path.join(SERVER_DIR, str(client_id))
     # Get all client's directories and files
     dirs, files = lib.get_dirs_and_files(client_dir)
@@ -151,17 +153,16 @@ def rcv_file():
     client_buff, file_name = lib.getToken(client_socket, client_buff)
     temp_path = os.path.join(SERVER_DIR, client_id)
     file_path = os.path.join(temp_path, file_name)
-    lib.create_file(SERVER_DIR, file_name)
+    lib.create_file(temp_path, file_name)
     # receive data now
-    client_buff, data = lib.getToken(client_socket, client_buff, False)
-    lib.write_data(file_path, data)
+    lib.rcv_file(client_socket, client_buff, file_path)
 
 
 def find_id(client_adress):
     for client_id in account_map.keys():
         for client_info in account_map[client_id]:
             if client_info[0] == client_adress[0]:
-                return client_id
+                return str(client_id)
     return None
 
 
@@ -180,7 +181,7 @@ if __name__ == "__main__":
             except:
                 sys.exit(1)
             client_buff, command_token = lib.getToken(client_socket, client_buff)
-            print("before if command check")
+            print("command token:",command_token)
             if command_token == 'fin' or command_token is None:
                 print("were breaking")
                 break

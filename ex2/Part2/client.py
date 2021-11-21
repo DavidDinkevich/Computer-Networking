@@ -13,6 +13,7 @@ global my_buff
 global my_socket
 global client_id
 MY_DIR = 'client_dir'
+watch_dog_switch = True
 
 
 # =======================================
@@ -37,13 +38,6 @@ def is_file_closed(file_path):
         return False
     except:
         return True
-
-
-##need to move into lib library
-def create_dir(path_name):
-    path = os.path.join(MY_DIR, path_name)
-    if not os.path.exists(path):
-        os.mkdir(os.path.join(MY_DIR, path_name))
 
 
 def open_connection():
@@ -71,6 +65,7 @@ class OnMyWatch:
         self.observer = Observer()
 
     def run(self):
+        global watch_dog_switch
         event_handler = Handler()
         self.observer.schedule(event_handler, self.watchDirectory, recursive=True)
         self.observer.start()
@@ -79,9 +74,11 @@ class OnMyWatch:
                 open_connection()  # Open connection to server
                 if len(wd_queue) > 0:
                     proccess_wd_dequeue(MY_DIR)
+                watch_dog_switch = False
                 pull_request()  # Send pull request
+                watch_dog_switch=True
                 close_connection()  # Close connection
-                time.sleep(5)
+                time.sleep(60)
         except:
             self.observer.stop()
             print("Observer Stopped")
@@ -101,58 +98,52 @@ class Handler(FileSystemEventHandler):
     def on_any_event(event):
         # in case we opened a new thread, we want to check if there is already
         # connection between the server and client.
-        flag_connect = False
-        try:
+        file_name = event.src_path.split(os.path.sep)[-1]
+        if watch_dog_switch == True and file_is_not_hidden(file_name):
             open_connection()
-            flag_connect = True
-        # if we failed means were already have a connection.
-        except:
-            flag_connect = False
+            process_dequeue()
+            print("event had occured", event.event_type)
 
-        process_dequeue()
-        print("event had occured", event.event_type)
-
-        # Get relative path of file/dir
-        relative_path = event.src_path[len(MY_DIR) + 1:]
-        print('SUBJECT FILE: ' + relative_path)
-        # in case client modified something in its files
-        #        if event.event_type == 'modified':
-        #            # in case client modified dir:
-        #            if event.is_directory and len(relative_path) > 0:
-        #                # sending server to handle the modifying
-        #                lib.sendToken(my_socket, 'movdir', [relative_path])
-        #            # Event is modified, you can process it now
-        #            file_name = relative_path.split(os.pathsep)[-1]
-        #            if file_is_not_hidden(file_name):
-        #                print("Watchdog received modified event - % s." % relative_path)
-        if event.event_type == 'created':
-            if event.is_directory:
-                wd_queue.append(('mkdir', relative_path))
-                # handle_create_dir_event(relative_path)
-            else:
-                # handle_create_file_event(event.src_path, relative_path)
-                wd_queue.append(('mkfile', relative_path))
-                # Event is created, you can process it now
-            print("Watchdog received created event - % s." % relative_path)
-        elif event.event_type == 'moved':
-            pass
-        elif event.event_type == 'deleted':
-            if event.is_directory:
-                # lib.sendToken(my_socket, 'rmdir', [relative_path])
-                wd_queue.append(('rmid', relative_path))
-            else:
-                # if event's directory is actually file's directory.
-                # lib.sendToken(my_socket, 'rmfile', [relative_path])
-                wd_queue.append(('rmfile', relative_path))
-        elif event.event_type == 'modified':
-            pass
-            # if event.is_directory:
-            #     wd_queue.append(('movdir', relative_path))
-            # else:
-            #     wd_queue.append(('movfile', relative_path))
-        if flag_connect:
+            # Get relative path of file/dir
+            relative_path = event.src_path[len(MY_DIR) + 1:]
+            print('SUBJECT FILE: ' + relative_path)
+            # in case client modified something in its files
+            #        if event.event_type == 'modified':
+            #            # in case client modified dir:
+            #            if event.is_directory and len(relative_path) > 0:
+            #                # sending server to handle the modifying
+            #                lib.sendToken(my_socket, 'movdir', [relative_path])
+            #            # Event is modified, you can process it now
+            #            file_name = relative_path.split(os.pathsep)[-1]
+            #            if file_is_not_hidden(file_name):
+            #                print("Watchdog received modified event - % s." % relative_path)
+            if event.event_type == 'created':
+                if event.is_directory:
+                    wd_queue.append(('mkdir', relative_path))
+                    # handle_create_dir_event(relative_path)
+                else:
+                    # handle_create_file_event(event.src_path, relative_path)
+                    wd_queue.append(('mkfile', relative_path))
+                    # Event is created, you can process it now
+                print("Watchdog received created event - % s." % relative_path)
+            elif event.event_type == 'moved':
+                pass
+            elif event.event_type == 'deleted':
+                if event.is_directory:
+                    # lib.sendToken(my_socket, 'rmdir', [relative_path])
+                    wd_queue.append(('rmdir', relative_path))
+                else:
+                    # if event's directory is actually file's directory.
+                    # lib.sendToken(my_socket, 'rmfile', [relative_path])
+                    wd_queue.append(('rmfile', relative_path))
+            elif event.event_type == 'modified':
+                pass
+                # if event.is_directory:
+                #     wd_queue.append(('movdir', relative_path))
+                # else:
+                #     wd_queue.append(('movfile', relative_path))
             proccess_wd_dequeue(event.src_path)
-        close_connection()
+            close_connection()
 
 
 def proccess_wd_dequeue(abs_path):
@@ -174,6 +165,8 @@ def proccess_wd_dequeue(abs_path):
         # means its movfile
         else:
             lib.sendToken(my_socket, cmd, [relative_path])
+        print("queue is:", wd_queue)
+        wd_queue.remove(item)
 
 
 # Update server about watchdog-detected directory creation
@@ -264,33 +257,33 @@ def send_list_request():
 
 
 def pull_request():
-    def pull_request():
-        to_remove, to_add = send_list_request()
-        print('Must delete: ', to_remove)
-        print('Must add: ', to_add)
-        lib.remove_all_files_and_dirs(to_remove)
+    to_remove, to_add = send_list_request()
+    print('Must delete: ', to_remove)
+    print('Must add: ', to_add)
+    lib.remove_all_files_and_dirs(to_remove, MY_DIR)
 
-        # If we have
-        if len(to_add) == 0:
-            return
+    # If we have
+    if len(to_add) == 0:
+        return
 
-        global my_buff, last_file_created
+    global my_buff, last_file_created
 
-        # Now let's request a pull, and ignore everything that we already have
+    # Now let's request a pull, and ignore everything that we already have
 
-        lib.sendToken(my_socket, 'pull', [client_id])
-        while True:
-            my_buff, command_token = lib.getToken(my_socket, my_buff)
-            if command_token == 'eoc' or command_token is None:
-                break
-            my_buff, path_token = lib.getToken(my_socket, my_buff)
+    lib.sendToken(my_socket, 'pull', [client_id])
+    while True:
+        my_buff, command_token = lib.getToken(my_socket, my_buff)
+        if command_token == 'eoc' or command_token is None:
+            break
+        my_buff, path_token = lib.getToken(my_socket, my_buff)
 
-            if command_token == 'mkdir' and path_token in to_add:
-                create_dir(path_token)
-            elif command_token == 'mkfile' and path_token in to_add:
-                abs_path = os.path.join(MY_DIR, path_token)
-                lib.create_file(MY_DIR, path_token)
-                lib.rcv_file(my_socket, my_buff, abs_path)
+        if command_token == 'mkdir' and path_token in to_add:
+            lib.create_dir(os.path.join(MY_DIR, path_token))
+        elif command_token == 'mkfile' and path_token in to_add:
+            abs_path = os.path.join(MY_DIR, path_token)
+            lib.create_file(MY_DIR, path_token)
+            lib.rcv_file(my_socket, my_buff, abs_path)
+
 
 if __name__ == "__main__":
     # my_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

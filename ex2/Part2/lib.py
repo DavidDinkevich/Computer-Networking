@@ -17,6 +17,11 @@ lang = {
     "data": (1, 0),
     "fin": (0, 0),
 }
+##need to move into lib library
+def create_dir(abs_path):
+    if not os.path.exists(abs_path):
+        os.mkdir(abs_path)
+
 def remove_all_files_and_dirs(to_remove,serv_client_path):
     for item in to_remove:
         local_path = os.path.join(serv_client_path, item)
