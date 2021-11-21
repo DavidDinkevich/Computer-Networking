@@ -135,7 +135,7 @@ def open_connection():
     my_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     my_socket.connect(('127.0.0.1', 12345))
 
-//
+
 #
 def close_connection():
     global my_socket
