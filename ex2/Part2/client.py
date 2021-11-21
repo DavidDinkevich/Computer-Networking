@@ -15,86 +15,9 @@ global client_id
 MY_DIR = 'client_dir'
 
 
-class OnMyWatch:
-    # Set the directory on watch
-    watchDirectory = MY_DIR
-
-    def __init__(self):
-        print("observer started")
-        self.observer = Observer()
-
-    def run(self):
-        event_handler = Handler()
-        self.observer.schedule(event_handler, self.watchDirectory, recursive=True)
-        self.observer.start()
-        try:
-            while True:
-                # first we open connection, then sync with the server, and last updating
-                # the server with the files that we modified or added.
-                open_connection()
-                pull_request()
-                process_dequeue()
-                time.sleep(5)
-        except:
-            self.observer.stop()
-            print("Observer Stopped")
-
-        self.observer.join()
-
-
-# assuming queue holds all the files/dirs that need to be sent to the client
-# by order
-file_upload_queue = []
-
-'''
-need to fix watchdog operation over the client.
-goals:
-    1. when event is occured, add it to a queue all the events to operate.
-    2. when the timeout which been set by Hemi.hemi-- open connection and empty the queue.
-    3.emptiness of the queue will happen right after we request pull update from the server
-    -which will use the get diff and make our client to be fully updated.
-    _____________________________________________________
-    @function name: Handler
-    #On every event that has been detected by watchdog, the event will be added 
-    to a queue.(only the events that need to be noticed).
-    
-'''
-
-
-class Handler(FileSystemEventHandler):
-    @staticmethod
-    def on_any_event(event):
-        relative_path = event.src_path[len(MY_DIR) + 1:]
-        print('SUBJECT FILE: ' + relative_path)
-        # in case client modified something in its files
-        if event.event_type == 'modified':
-            # in case client modified dir:
-            if event.is_directory and len(relative_path) > 0:
-                # sending server to handle the modifying
-                lib.sendToken(my_socket, 'movdir', [relative_path])
-            # Event is modified, you can process it now
-            file_name = relative_path.split(os.pathsep)[-1]
-            if file_is_not_hidden(file_name):
-                print("Watchdog received modified event - % s." % relative_path)
-        if event.event_type == 'created':
-            if event.is_directory:
-                lib.sendToken(my_socket, 'mkdir', [relative_path])
-            else:
-                file_name = relative_path.split('/')[-1]
-                if file_is_not_hidden(file_name):
-                    print('Checking if file is open:', event.src_path)
-                    if not is_file_closed(event.src_path):
-                        print('File is open, adding to queue')
-                        file_upload_queue.append((event.src_path, relative_path))
-                    else:
-                        lib.send_data(my_socket, event.src_path, relative_path)
-            # Event is created, you can process it now
-            print("Watchdog received created event - % s." % relative_path)
-        elif event.event_type == 'moved':
-            pass
-        elif event.event_type == 'removed':
-            lib.sendToken(socket, 'rmdir', [relative_path])
-        close_connection()
+# =======================================
+#       General Utility Functions
+# =======================================
 
 
 def file_is_not_hidden(file_name):
@@ -105,6 +28,135 @@ def file_is_not_hidden(file_name):
         return True
     except:
         return True
+
+
+def is_file_closed(file_path):
+    try:
+        f = open(file_path, 'r')
+        f.close()
+        return False
+    except:
+        return True
+
+
+##need to move into lib library
+def create_dir(path_name):
+    path = os.path.join(MY_DIR, path_name)
+    if not os.path.exists(path):
+        os.mkdir(os.path.join(MY_DIR, path_name))
+
+
+def open_connection():
+    global my_socket
+    my_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    my_socket.connect(('127.0.0.1', 12345))
+
+
+#
+def close_connection():
+    global my_socket
+    my_socket.close()
+
+
+def remove_all_files_and_dirs(to_remove):
+    for item in to_remove:
+        local_path = os.path.join(MY_DIR, item)
+        # Check if exists, just in case
+        if not os.path.exists(local_path):
+            continue
+        # Delete if file
+        if os.path.isfile(local_path):
+            os.remove(local_path)
+        else:  # Delete if directory
+            os.rmdir(local_path)
+
+
+# =======================================
+#               Watchdog
+# =======================================
+
+class OnMyWatch:
+    # Set the directory on watch
+    watchDirectory = MY_DIR
+
+    def _init_(self):
+        print("observer started")
+        self.observer = Observer()
+
+    def run(self):
+        event_handler = Handler()
+        self.observer.schedule(event_handler, self.watchDirectory, recursive=True)
+        self.observer.start()
+        try:
+            while True:
+                open_connection()  # Open connection to server
+                pull_request()  # Send pull request
+                close_connection()  # Close connection
+                time.sleep(5)
+        except:
+            self.observer.stop()
+            print("Observer Stopped")
+
+        self.observer.join()
+
+
+file_upload_queue = []
+
+
+class Handler(FileSystemEventHandler):
+    @staticmethod
+    def on_any_event(event):
+        open_connection()
+        process_dequeue()
+
+        # Get relative path of file/dir
+        relative_path = event.src_path[len(MY_DIR) + 1:]
+        print('SUBJECT FILE: ' + relative_path)
+        # in case client modified something in its files
+        #        if event.event_type == 'modified':
+        #            # in case client modified dir:
+        #            if event.is_directory and len(relative_path) > 0:
+        #                # sending server to handle the modifying
+        #                lib.sendToken(my_socket, 'movdir', [relative_path])
+        #            # Event is modified, you can process it now
+        #            file_name = relative_path.split(os.pathsep)[-1]
+        #            if file_is_not_hidden(file_name):
+        #                print("Watchdog received modified event - % s." % relative_path)
+        if event.event_type == 'created':
+            if event.is_directory:
+                handle_create_dir_event(relative_path)
+            else:
+                handle_create_file_event(event.src_path, relative_path)
+            # Event is created, you can process it now
+            print("Watchdog received created event - % s." % relative_path)
+        elif event.event_type == 'moved':
+            pass
+        elif event.event_type == 'removed':
+            lib.sendToken(socket, 'rmdir', [relative_path])
+
+        close_connection()
+
+
+# Update server about watchdog-detected directory creation
+def handle_create_dir_event(relative_path):
+    # Send mkdir token with directory name
+    lib.sendToken(my_socket, 'mkdir', [relative_path])
+
+
+def handle_create_file_event(abs_path, rel_path):
+    # Get file name (to check if file is hidden)
+    file_name = rel_path.split('/')[-1]
+    # If file is not hidden
+    if file_is_not_hidden(file_name):
+        print('Checking if file is open:', abs_path)
+        # If file is not closed
+        if not is_file_closed(abs_path):
+            print('File is open, adding to queue')
+            # Add file to upload queue--we'll upload it later
+            file_upload_queue.append((abs_path, rel_path))
+        else:  # If file is closed
+            # Send file to server
+            lib.send_data(my_socket, abs_path, rel_path)
 
 
 '''
@@ -121,25 +173,9 @@ def process_dequeue():
             file_upload_queue.pop(0)
 
 
-def is_file_closed(file_path):
-    try:
-        f = open(file_path, 'r')
-        f.close()
-        return False
-    except:
-        return True
-
-
-def open_connection():
-    global my_socket
-    my_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    my_socket.connect(('127.0.0.1', 12345))
-
-
-#
-def close_connection():
-    global my_socket
-    pass
+# =======================================
+#    Non-Watchdog Server Interactions
+# =======================================
 
 
 def on_start_up(s, buff):
@@ -183,25 +219,16 @@ def send_list_request():
     # Let's compare.
     my_dirs, my_files = lib.get_dirs_and_files(MY_DIR)
     to_remove, to_add = lib.diff(my_dirs, my_files, server_dirs, server_files)
-    print('Must delete: ', to_remove)
-    # Delete everything not still in server
-    for item in to_remove:
-        local_path = os.path.join(MY_DIR, item)
-        # Check if exists, just in case
-        if not os.path.exists(local_path):
-            continue
-        # Delete if file
-        if os.path.isfile(local_path):
-            os.remove(local_path)
-        else:  # Delete if directory
-            os.rmdir(local_path)
 
     # Return dirs/files that we need to add
-    return to_add
+    return to_remove, to_add
 
 
 def pull_request():
-    to_add = send_list_request()
+    to_remove, to_add = send_list_request()
+    print('Must delete: ', to_remove)
+    remove_all_files_and_dirs(to_remove)
+
     global my_buff, last_file_created
 
     # Now let's request a pull, and ignore everything that we already have
@@ -225,13 +252,6 @@ def pull_request():
             lib.write_data(last_file_created, path_token.encode('utf8'))
 
 
-##need to move into lib library
-def create_dir(path_name):
-    path = os.path.join(MY_DIR, path_name)
-    if not os.path.exists(path):
-        os.mkdir(os.path.join(MY_DIR, path_name))
-
-
 if __name__ == "__main__":
     # my_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     my_buff = []
@@ -240,4 +260,3 @@ if __name__ == "__main__":
     print("arrived here")
     watch = OnMyWatch()
     watch.run()
-    my_socket.close()
