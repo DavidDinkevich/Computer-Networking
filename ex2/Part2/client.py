@@ -29,7 +29,11 @@ class OnMyWatch:
         self.observer.start()
         try:
             while True:
+                # first we open connection, then sync with the server, and last updating
+                # the server with the files that we modified or added.
                 open_connection()
+                pull_request()
+                process_dequeue()
                 time.sleep(5)
         except:
             self.observer.stop()
@@ -38,14 +42,28 @@ class OnMyWatch:
         self.observer.join()
 
 
+# assuming queue holds all the files/dirs that need to be sent to the client
+# by order
 file_upload_queue = []
+
+'''
+need to fix watchdog operation over the client.
+goals:
+    1. when event is occured, add it to a queue all the events to operate.
+    2. when the timeout which been set by Hemi.hemi-- open connection and empty the queue.
+    3.emptiness of the queue will happen right after we request pull update from the server
+    -which will use the get diff and make our client to be fully updated.
+    _____________________________________________________
+    @function name: Handler
+    #On every event that has been detected by watchdog, the event will be added 
+    to a queue.(only the events that need to be noticed).
+    
+'''
 
 
 class Handler(FileSystemEventHandler):
     @staticmethod
     def on_any_event(event):
-        open_connection()
-        process_dequeue()
         relative_path = event.src_path[len(MY_DIR) + 1:]
         print('SUBJECT FILE: ' + relative_path)
         # in case client modified something in its files
@@ -69,7 +87,7 @@ class Handler(FileSystemEventHandler):
                         print('File is open, adding to queue')
                         file_upload_queue.append((event.src_path, relative_path))
                     else:
-                        lib.send_data(my_socket,event.src_path, relative_path)
+                        lib.send_data(my_socket, event.src_path, relative_path)
             # Event is created, you can process it now
             print("Watchdog received created event - % s." % relative_path)
         elif event.event_type == 'moved':
@@ -99,7 +117,7 @@ def process_dequeue():
         (abs_path, relative_path) = file_upload_queue[0]
         print('Checking if file is open:', abs_path)
         if is_file_closed(relative_path):
-            lib.send_data(my_socket, abs_path,relative_path)
+            lib.send_data(my_socket, abs_path, relative_path)
             file_upload_queue.pop(0)
 
 
@@ -117,7 +135,8 @@ def open_connection():
     my_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     my_socket.connect(('127.0.0.1', 12345))
 
-#   
+
+#
 def close_connection():
     global my_socket
     pass
@@ -141,6 +160,7 @@ def on_start_up(s, buff):
     lib.sendToken(my_socket, 'fin', [])
     my_socket.close()
 
+
 def send_list_request():
     global my_buff, last_file_created
 
@@ -158,7 +178,7 @@ def send_list_request():
             server_dirs.append(path_token)
         elif command_token == 'mkfile':
             server_files.append(path_token)
-    
+
     # We now have a full list of server's dirs and files.
     # Let's compare.
     my_dirs, my_files = lib.get_dirs_and_files(MY_DIR)
@@ -173,18 +193,19 @@ def send_list_request():
         # Delete if file
         if os.path.isfile(local_path):
             os.remove(local_path)
-        else: # Delete if directory
+        else:  # Delete if directory
             os.rmdir(local_path)
-            
+
     # Return dirs/files that we need to add
     return to_add
+
 
 def pull_request():
     to_add = send_list_request()
     global my_buff, last_file_created
-        
+
     # Now let's request a pull, and ignore everything that we already have
-    
+
     lib.sendToken(my_socket, 'pull', [client_id])
     while True:
         my_buff, command_token = lib.getToken(my_socket, my_buff)
@@ -202,6 +223,7 @@ def pull_request():
                 last_file_created = None
         elif command_token == 'data' and last_file_created is not None:
             lib.write_data(last_file_created, path_token.encode('utf8'))
+
 
 ##need to move into lib library
 def create_dir(path_name):
