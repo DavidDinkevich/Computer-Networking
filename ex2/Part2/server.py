@@ -55,7 +55,25 @@ def process_command(command):
     elif command_token == 'mkfile':
         rcv_file()
     elif command_token == 'rmdir':
-        pass
+        ##operate remove dir, creat array and send it to the fucntion in utils.
+        rm_dir_or_file()
+    elif command_token == 'rmfile':
+        # removing file
+        rm_dir_or_file()
+
+
+'''
+rn_dir_or_file:
+function is based on util's func, which removes dir or files from given's path
+'''
+
+
+def rm_dir_or_file():
+    global client_buff
+    client_id = find_id(client_address)
+    client_buff, folder_name = lib.getToken(client_socket, client_buff)
+    abs_path = os.path.join(SERVER_DIR, client_id)
+    lib.remove_all_files_and_dirs([folder_name], abs_path)
 
 
 def get_su():

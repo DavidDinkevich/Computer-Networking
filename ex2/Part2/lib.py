@@ -17,7 +17,17 @@ lang = {
     "data": (1, 0),
     "fin": (0, 0),
 }
-
+def remove_all_files_and_dirs(to_remove,serv_client_path):
+    for item in to_remove:
+        local_path = os.path.join(serv_client_path, item)
+        # Check if exists, just in case
+        if not os.path.exists(local_path):
+            continue
+        # Delete if file
+        if os.path.isfile(local_path):
+            os.remove(local_path)
+        else:  # Delete if directory
+            os.rmdir(local_path)
 
 def sendToken(socket, cmd, args, encode=True):
     # msg = cmd.encode('utf8') + SEP_CHAR
@@ -123,3 +133,14 @@ def diff(dir1_dirs, dir1_files, dir2_dirs, dir2_files):
 
     return to_remove, to_add
 
+def rcv_file(my_socket, my_buff, abs_path):
+    while True:
+        # Extract token and update
+        my_buff, command_token = getToken(my_socket, my_buff)
+        # Exit condition
+        if command_token != 'data' or command_token is None:
+            my_buff.insert(0, command_token)
+            break
+        # Read content and write to file
+        my_buff, content_token = getToken(my_socket, my_buff)
+        write_data(abs_path, content_token.encode('utf8'))
