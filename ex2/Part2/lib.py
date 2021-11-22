@@ -19,6 +19,14 @@ lang = {
 }
 
 
+def mov(root, src_path, dst_path):
+    full_src_path = os.path.join(root, src_path)
+    full_dst_path = os.path.join(root, dst_path)
+    os.rename(full_src_path, full_dst_path)
+    remove_all_files_and_dirs([src_path], root)
+
+
+
 ##need to move into lib library
 def create_dir(abs_path):
     if not os.path.exists(abs_path):

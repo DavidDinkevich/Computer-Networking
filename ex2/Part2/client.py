@@ -128,7 +128,9 @@ class Handler(FileSystemEventHandler):
                 print("Watchdog received created event - % s." % relative_path)
             elif event.event_type == 'moved':
                 # sending sorce and destination path.
-                wd_queue.append(('movdir', event.src_path, event.dest_path))
+                # need to take relative_dest:
+                relative_dest = event.dest_path[len(client_dir) + 1:]
+                wd_queue.append(('mov', relative_path, relative_dest))
             elif event.event_type == 'deleted':
                 if event.is_directory:
                     # lib.sendToken(my_socket, 'rmdir', [relative_path])
@@ -138,11 +140,13 @@ class Handler(FileSystemEventHandler):
                     # lib.sendToken(my_socket, 'rmfile', [relative_path])
                     wd_queue.append(('rmfile', relative_path))
             elif event.event_type == 'modified':
-                pass
-                # if event.is_directory:
-                #     wd_queue.append(('movdir', relative_path))
-                # else:
-                #     wd_queue.append(('movfile', relative_path))
+                if os.path.isfile(event.src_path):
+                    print('File modified: ', event.src_path, relative_path)
+                    # mkfile_command = ('mkfile', relative_path)
+                    # wd_queue.append(('rmfile', relative_path))
+                    # wd_queue.append(mkfile_command)
+                    wd_queue.append(('modfile', relative_path))
+
             if watch_dog_switch:
                 print("were closing")
                 proccess_wd_dequeue(client_dir)
@@ -150,7 +154,7 @@ class Handler(FileSystemEventHandler):
                 close_connection()
 
 
-def proccess_wd_dequeue(abs_path):
+def proccess_wd_dequeue(root_path):
     for item in wd_queue:
         print("deque item:", item)
         cmd = item[0]
@@ -158,17 +162,21 @@ def proccess_wd_dequeue(abs_path):
         lib.sendToken(my_socket, 'identify', [client_id, client_instance_id])
 
         if cmd == 'mkfile':
-            abs_path = os.path.join(abs_path, relative_path)
+            abs_path = os.path.join(root_path, relative_path)
             handle_create_file_event(abs_path, relative_path)
         elif cmd == 'mkdir':
             handle_create_dir_event(relative_path)
         elif cmd == 'rmfile' or cmd == 'rmdir' or cmd == 'modified':
             lib.sendToken(my_socket, cmd, [relative_path])
-        elif cmd == 'movdir':
-            lib.sendToken(my_socket, cmd, [relative_path])
-        # means its movfile
-        elif cmd == 'movfile':
-            lib.sendToken(my_socket, cmd, [relative_path])
+        elif cmd == 'mov':
+            # send src and dest path as tuple in arguments
+            lib.sendToken(my_socket, cmd, [relative_path, item[2]])
+        elif cmd == 'modfile':
+            mkdir_cmd = ('mkfile', relative_path)
+            if mkdir_cmd not in file_upload_queue:
+                lib.sendToken(my_socket, cmd, [relative_path])
+                abs_path = os.path.join(root_path, relative_path)
+                handle_create_file_event(abs_path, relative_path)
         print("queue is:", wd_queue)
         wd_queue.remove(item)
 
@@ -262,8 +270,14 @@ def process_server_instructions():
         elif command_token == 'rmdir' or command_token == 'rmfile':
             abs_path = os.path.join(client_dir, path_token)
             lib.remove_all_files_and_dirs([path_token], abs_path)
-        elif command_token == 'movdir' or command_token == 'movfile':
-            pass
+        elif command_token == 'mov':
+            my_buff, src_path = lib.getToken(my_socket, my_buff)
+            lib.mov(client_dir, src_path, my_buff[1])
+        elif command_token == 'modfile':
+            abs_path = os.path.join(client_dir, path_token)
+            lib.remove_all_files_and_dirs([path_token], abs_path)
+            lib.create_file(client_dir, path_token)
+            lib.rcv_file(my_socket, my_buff, abs_path)
 
 
 if __name__ == "__main__":

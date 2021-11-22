@@ -72,6 +72,34 @@ def process_command(command):
     elif command_token == 'rmdir' or command_token == 'rmfile':
         ##operate remove dir, creat array and send it to the fucntion in utils.
         rm_dir_or_file()
+    elif command_token == 'mov':
+        mov()
+    elif command_token == 'modfile':
+        update_file_version()
+
+
+def update_file_version():
+    global client_buff
+    client_buff, file_name = lib.getToken(client_socket, client_buff)
+    abs_path = os.path.join(SERVER_DIR, curr_client_id)
+    lib.remove_all_files_and_dirs([file_name], abs_path)
+
+    temp_path = os.path.join(SERVER_DIR, curr_client_id)
+    file_path = os.path.join(temp_path, file_name)
+    lib.create_file(temp_path, file_name)
+    # receive data now
+    lib.rcv_file(client_socket, client_buff, file_path)
+
+    # add it to queue for all other computers
+    add_changes((curr_client_id, curr_client_inst), ('modfile', file_name))
+
+
+def mov():
+    global client_buff
+    client_buff, src_path = lib.getToken(client_socket, client_buff)
+    root = os.path.join(SERVER_DIR, curr_client_id)
+    # buffer should hold: [src_path,dest_path]
+    lib.mov(root, src_path, client_buff[0])
 
 
 '''
@@ -133,9 +161,9 @@ def dequeue_all(queue):
         item = queue.pop(0)
         # send the token to the client
         lib.sendToken(client_socket, item[0], [item[1]])
-        # in case command is mkfile
+        # in case command is mkfile or modfile
         # need to test it
-        if item[0] == 'mkfile':
+        if item[0] == 'mkfile' or item[0] == 'modfile':
             abs_path = os.path.join(SERVER_DIR, item[1])
             lib.send_data(client_socket, abs_path, item[1])
 
