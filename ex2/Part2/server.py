@@ -20,7 +20,8 @@ while True:
 server.listen()
 client_buff = []
 account_map = {}
-last_file_created = ""
+make_changes_map={}
+
 
 
 def generate_id():
@@ -89,6 +90,7 @@ def mk_dir():
     client_buff, folder_name = lib.getToken(client_socket, client_buff)
     folder_path = os.path.join(client_id, folder_name)
     lib.create_dir(os.path.join(SERVER_DIR, folder_path))
+
 
 
 '''

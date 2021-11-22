@@ -76,9 +76,9 @@ class OnMyWatch:
                     proccess_wd_dequeue(MY_DIR)
                 watch_dog_switch = False
                 pull_request()  # Send pull request
-                watch_dog_switch=True
                 close_connection()  # Close connection
-                time.sleep(60)
+                watch_dog_switch = True
+                time.sleep(5)
         except:
             self.observer.stop()
             print("Observer Stopped")
@@ -150,7 +150,7 @@ def proccess_wd_dequeue(abs_path):
     for item in wd_queue:
         cmd = item[0]
         relative_path = item[1]
-        if cmd == 'rmid':
+        if cmd == 'rmdir':
             lib.sendToken(my_socket, cmd, [relative_path])
         elif cmd == 'mkfile':
             handle_create_file_event(abs_path, relative_path)
@@ -163,7 +163,7 @@ def proccess_wd_dequeue(abs_path):
         elif cmd == 'movdir':
             lib.sendToken(my_socket, cmd, [relative_path])
         # means its movfile
-        else:
+        elif cmd == 'movfile':
             lib.sendToken(my_socket, cmd, [relative_path])
         print("queue is:", wd_queue)
         wd_queue.remove(item)
@@ -211,6 +211,8 @@ def process_dequeue():
 
 
 def on_start_up(s, buff):
+    global watch_dog_switch
+    watch_dog_switch = False
     '''
     to check: if we have id argument.
     '''
