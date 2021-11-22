@@ -9,36 +9,19 @@ import lib
 import sys
 import os
 
+global first_time
 global my_buff
 global my_socket
-global client_id
 MY_DIR = 'client_dir'
 watch_dog_switch = True
+
+client_id = None
+client_instance_id = '-1'
 
 
 # =======================================
 #       General Utility Functions
 # =======================================
-
-
-def file_is_not_hidden(file_name):
-    try:
-        file_is_hidden = file_name[0] == '.'
-        if file_is_hidden:
-            return False
-        return True
-    except:
-        return True
-
-
-def is_file_closed(file_path):
-    try:
-        f = open(file_path, 'r')
-        f.close()
-        return False
-    except:
-        return True
-
 
 def open_connection():
     global my_socket
@@ -71,11 +54,23 @@ class OnMyWatch:
         self.observer.start()
         try:
             while True:
+                print("open connection")
                 open_connection()  # Open connection to server
+                print("queue to dequeue", wd_queue)
+                # why here?
+                watch_dog_switch = False
+                process_dequeue()
+                time.sleep(4)
                 if len(wd_queue) > 0:
                     proccess_wd_dequeue(MY_DIR)
-                watch_dog_switch = False
                 pull_request()  # Send pull request
+                print("proccessing dequeue")
+                process_dequeue()
+                time.sleep(4)
+                if len(wd_queue) > 0:
+                    proccess_wd_dequeue(MY_DIR)
+                print("queue before closing")
+                print("were closing")
                 close_connection()  # Close connection
                 watch_dog_switch = True
                 time.sleep(5)
@@ -99,9 +94,10 @@ class Handler(FileSystemEventHandler):
         # in case we opened a new thread, we want to check if there is already
         # connection between the server and client.
         file_name = event.src_path.split(os.path.sep)[-1]
-        if watch_dog_switch == True and file_is_not_hidden(file_name):
+        if watch_dog_switch:
+            print('open connection')
             open_connection()
-            process_dequeue()
+        if lib.file_is_not_hidden(file_name):
             print("event had occured", event.event_type)
 
             # Get relative path of file/dir
@@ -142,23 +138,26 @@ class Handler(FileSystemEventHandler):
                 #     wd_queue.append(('movdir', relative_path))
                 # else:
                 #     wd_queue.append(('movfile', relative_path))
-            proccess_wd_dequeue(event.src_path)
-            close_connection()
+            if watch_dog_switch:
+                print("were closing")
+                proccess_wd_dequeue(MY_DIR)
+                process_dequeue()
+                close_connection()
 
 
 def proccess_wd_dequeue(abs_path):
     for item in wd_queue:
+        print("deque item:",item)
         cmd = item[0]
         relative_path = item[1]
-        if cmd == 'rmdir':
-            lib.sendToken(my_socket, cmd, [relative_path])
-        elif cmd == 'mkfile':
+        lib.sendToken(my_socket, 'identify', [client_id, client_instance_id])
+
+        if cmd == 'mkfile':
+            abs_path = os.path.join(abs_path, relative_path)
             handle_create_file_event(abs_path, relative_path)
         elif cmd == 'mkdir':
             handle_create_dir_event(relative_path)
-        elif cmd == 'rmfile':
-            lib.sendToken(my_socket, cmd, [relative_path])
-        elif cmd == 'modified':
+        elif cmd == 'rmfile' or cmd == 'rmdir' or cmd == 'modified':
             lib.sendToken(my_socket, cmd, [relative_path])
         elif cmd == 'movdir':
             lib.sendToken(my_socket, cmd, [relative_path])
@@ -177,12 +176,12 @@ def handle_create_dir_event(relative_path):
 
 def handle_create_file_event(abs_path, rel_path):
     # Get file name (to check if file is hidden)
-    file_name = rel_path.split('/')[-1]
+    file_name = rel_path.split(os.path.sep)[-1]
     # If file is not hidden
-    if file_is_not_hidden(file_name):
+    if lib.file_is_not_hidden(file_name):
         print('Checking if file is open:', abs_path)
         # If file is not closed
-        if not is_file_closed(abs_path):
+        if not lib.is_file_closed(abs_path):
             print('File is open, adding to queue')
             # Add file to upload queue--we'll upload it later
             file_upload_queue.append((abs_path, rel_path))
@@ -200,7 +199,7 @@ def process_dequeue():
     while len(file_upload_queue) > 0:
         (abs_path, relative_path) = file_upload_queue[0]
         print('Checking if file is open:', abs_path)
-        if is_file_closed(relative_path):
+        if lib.is_file_closed(relative_path):
             lib.send_data(my_socket, abs_path, relative_path)
             file_upload_queue.pop(0)
 
@@ -211,19 +210,23 @@ def process_dequeue():
 
 
 def on_start_up(s, buff):
-    global watch_dog_switch
+    global watch_dog_switch, client_instance_id
     watch_dog_switch = False
     '''
     to check: if we have id argument.
     '''
     # open_connection()
-    global client_id
-    global my_buff
+    global client_id, my_buff
     if len(sys.argv) == 6:
         lib.sendToken(s, 'su', [])
         my_buff, client_id = lib.getToken(s, buff)
+        client_instance_id = '0'
+
     elif len(sys.argv) == 7:
         client_id = sys.argv[6]
+        lib.sendToken(my_socket, 'identify', [client_id, '-1'])
+        my_buff, client_instance_id = lib.getToken(my_socket, my_buff)
+        lib.sendToken(my_socket, 'de', [])
         print("this is client id:", client_id)
     pull_request()
     print("end pull")
@@ -231,64 +234,35 @@ def on_start_up(s, buff):
     my_socket.close()
 
 
-def send_list_request():
+def pull_request():
     global my_buff, last_file_created
+    lib.sendToken(my_socket, 'identify', [client_id, client_instance_id])
+    lib.sendToken(my_socket, 'pull', [])
+    process_server_instructions()
 
-    print('Sending list request:')
-    # Request that server provide list of dirs and files
-    lib.sendToken(my_socket, 'list', [client_id])
-    server_dirs = []
-    server_files = []
+
+def process_server_instructions():
+    global my_buff
     while True:
         my_buff, command_token = lib.getToken(my_socket, my_buff)
         if command_token == 'eoc' or command_token is None:
             break
         my_buff, path_token = lib.getToken(my_socket, my_buff)
         if command_token == 'mkdir':
-            server_dirs.append(path_token)
-        elif command_token == 'mkfile':
-            server_files.append(path_token)
-
-    # We now have a full list of server's dirs and files.
-    # Let's compare.
-    my_dirs, my_files = lib.get_dirs_and_files(MY_DIR)
-    to_remove, to_add = lib.diff(my_dirs, my_files, server_dirs, server_files)
-
-    # Return dirs/files that we need to add
-    return to_remove, to_add
-
-
-def pull_request():
-    to_remove, to_add = send_list_request()
-    print('Must delete: ', to_remove)
-    print('Must add: ', to_add)
-    lib.remove_all_files_and_dirs(to_remove, MY_DIR)
-
-    # If we have
-    if len(to_add) == 0:
-        return
-
-    global my_buff, last_file_created
-
-    # Now let's request a pull, and ignore everything that we already have
-
-    lib.sendToken(my_socket, 'pull', [client_id])
-    while True:
-        my_buff, command_token = lib.getToken(my_socket, my_buff)
-        if command_token == 'eoc' or command_token is None:
-            break
-        my_buff, path_token = lib.getToken(my_socket, my_buff)
-
-        if command_token == 'mkdir' and path_token in to_add:
             lib.create_dir(os.path.join(MY_DIR, path_token))
-        elif command_token == 'mkfile' and path_token in to_add:
+        elif command_token == 'mkfile':
             abs_path = os.path.join(MY_DIR, path_token)
             lib.create_file(MY_DIR, path_token)
             lib.rcv_file(my_socket, my_buff, abs_path)
+        elif command_token == 'rmdir' or command_token == 'rmfile':
+            abs_path = os.path.join(MY_DIR, path_token)
+            lib.remove_all_files_and_dirs([path_token], abs_path)
+        elif command_token == 'movdir' or command_token == 'movfile':
+            pass
 
 
 if __name__ == "__main__":
-    # my_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    global first_time
     my_buff = []
     open_connection()
     on_start_up(my_socket, my_buff)

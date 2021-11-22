@@ -17,12 +17,15 @@ lang = {
     "data": (1, 0),
     "fin": (0, 0),
 }
+
+
 ##need to move into lib library
 def create_dir(abs_path):
     if not os.path.exists(abs_path):
         os.mkdir(abs_path)
 
-def remove_all_files_and_dirs(to_remove,serv_client_path):
+
+def remove_all_files_and_dirs(to_remove, serv_client_path):
     for item in to_remove:
         local_path = os.path.join(serv_client_path, item)
         # Check if exists, just in case
@@ -33,6 +36,26 @@ def remove_all_files_and_dirs(to_remove,serv_client_path):
             os.remove(local_path)
         else:  # Delete if directory
             os.rmdir(local_path)
+
+
+def file_is_not_hidden(file_name):
+    try:
+        file_is_hidden = file_name[0] == '.'
+        if file_is_hidden:
+            return False
+        return True
+    except:
+        return True
+
+
+def is_file_closed(file_path):
+    try:
+        f = open(file_path, 'r')
+        f.close()
+        return False
+    except:
+        return True
+
 
 def sendToken(socket, cmd, args, encode=True):
     # msg = cmd.encode('utf8') + SEP_CHAR
@@ -74,7 +97,6 @@ def create_file(path_name, file_name):
     f.close()
 
 
-
 '''
 sending data from client to server and vice versa
 we assume that file path is the full path of the file(includes the server/client's path accordingly)
@@ -84,8 +106,7 @@ we assume that file path is the full path of the file(includes the server/client
 def send_data(my_socket, full_file_path, relative_path):
     sendToken(my_socket, 'mkfile', [relative_path])
     # modtime is the last time the file has been modified
-    modtime = os.stat(full_file_path)[7]
-    #sendToken(my_socket, 'modtime', [str(modtime)])
+    # sendToken(my_socket, 'modtime', [str(modtime)])
     with open(full_file_path, 'rb') as f:
         data = f.read(1024)
         if len(data) > 0:
@@ -100,11 +121,14 @@ def write_data(file_path, data):
     with open(file_path, 'r+b') as f:
         f.write(data)
 
+
 '''
 Returns two arrays, the first containing all of the subdirectories
 (of all depths) of top_root, and the second containing all of the files
 (of all depths) of top_root. All paths do not begin with top_root.
 '''
+
+
 def get_dirs_and_files(top_root):
     dirs = []
     files = []
@@ -119,24 +143,27 @@ def get_dirs_and_files(top_root):
                 files.append(whole_path)
     return dirs, files
 
+
 '''
 Receives four arrays:
     1) An array of the subdirectories (of all depths) in directory 1
     2) An array of the files (of all depths) in directory 1
     1) An array of the subdirectories (of all depths) in directory 2
     1) An array of the files (of all depths) in directory 2
-Returns two arrays, the first containing all of the directories and files 
+Returns two arrays, the first containing all of the directories and files
 that dir1 contains and dir2 doesn't contain (starting with files, and
 then directories). The second contains all of the directories and files that dir2
 contains and dir1 does not contain (starting with directories, and then
 files)
 '''
-def diff(dir1_dirs, dir1_files, dir2_dirs, dir2_files):
 
+
+def diff(dir1_dirs, dir1_files, dir2_dirs, dir2_files):
     to_remove = list(set(dir1_files) - set(dir2_files)) + list(set(dir1_dirs) - set(dir2_dirs))
     to_add = list(set(dir2_dirs) - set(dir1_dirs)) + list(set(dir2_files) - set(dir1_files))
 
     return to_remove, to_add
+
 
 def rcv_file(my_socket, my_buff, abs_path):
     while True:
@@ -144,7 +171,8 @@ def rcv_file(my_socket, my_buff, abs_path):
         my_buff, command_token = getToken(my_socket, my_buff)
         # Exit condition
         if command_token != 'data' or command_token is None:
-            my_buff.insert(0, command_token)
+            if command_token is not None:
+                my_buff.insert(0, command_token)
             break
         # Read content and write to file
         my_buff, content_token = getToken(my_socket, my_buff)
