@@ -1,9 +1,10 @@
+import time
+
 import watchdog.events
 import watchdog.observers
 import watchdog
 from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
-import time
 import socket
 import lib
 import sys
@@ -17,6 +18,11 @@ watch_dog_switch = True
 
 client_id = None
 client_instance_id = '-1'
+# arguments define
+ip = sys.argv[1]
+port = int(sys.argv[2])
+client_dir = sys.argv[3]
+wd_time = int(sys.argv[4])
 
 
 # =======================================
@@ -26,7 +32,7 @@ client_instance_id = '-1'
 def open_connection():
     global my_socket
     my_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    my_socket.connect(('127.0.0.1', 12345))
+    my_socket.connect((ip, port))
 
 
 #
@@ -60,13 +66,11 @@ class OnMyWatch:
                 # why here?
                 watch_dog_switch = False
                 process_dequeue()
-                time.sleep(4)
                 if len(wd_queue) > 0:
                     proccess_wd_dequeue(MY_DIR)
                 pull_request()  # Send pull request
                 print("proccessing dequeue")
                 process_dequeue()
-                time.sleep(4)
                 if len(wd_queue) > 0:
                     proccess_wd_dequeue(MY_DIR)
                 print("queue before closing")
@@ -123,7 +127,7 @@ class Handler(FileSystemEventHandler):
                     # Event is created, you can process it now
                 print("Watchdog received created event - % s." % relative_path)
             elif event.event_type == 'moved':
-                pass
+                wd_queue.append(('movdir',))
             elif event.event_type == 'deleted':
                 if event.is_directory:
                     # lib.sendToken(my_socket, 'rmdir', [relative_path])
@@ -147,7 +151,7 @@ class Handler(FileSystemEventHandler):
 
 def proccess_wd_dequeue(abs_path):
     for item in wd_queue:
-        print("deque item:",item)
+        print("deque item:", item)
         cmd = item[0]
         relative_path = item[1]
         lib.sendToken(my_socket, 'identify', [client_id, client_instance_id])

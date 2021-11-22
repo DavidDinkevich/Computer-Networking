@@ -7,12 +7,13 @@ import sys
 import lib as lib
 import time
 
+port = int(sys.argv[1])
 SERVER_DIR = "server_dir"
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 ##this is about to be deleted when we submit
 while True:
     try:
-        server.bind(('', 12345))
+        server.bind(('', port))
         break
     except:
         print("Couldn't open server, trying again")
