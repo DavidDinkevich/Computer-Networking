@@ -13,7 +13,7 @@ import os
 global first_time
 global my_buff
 global my_socket
-MY_DIR = 'client_dir'
+client_dir = 'client_dir'
 watch_dog_switch = True
 
 client_id = None
@@ -47,7 +47,7 @@ def close_connection():
 
 class OnMyWatch:
     # Set the directory on watch
-    watchDirectory = MY_DIR
+    watchDirectory = client_dir
 
     def __init__(self):
         print("observer started")
@@ -67,12 +67,12 @@ class OnMyWatch:
                 watch_dog_switch = False
                 process_dequeue()
                 if len(wd_queue) > 0:
-                    proccess_wd_dequeue(MY_DIR)
+                    proccess_wd_dequeue(client_dir)
                 pull_request()  # Send pull request
                 print("proccessing dequeue")
                 process_dequeue()
                 if len(wd_queue) > 0:
-                    proccess_wd_dequeue(MY_DIR)
+                    proccess_wd_dequeue(client_dir)
                 print("queue before closing")
                 print("were closing")
                 close_connection()  # Close connection
@@ -105,7 +105,7 @@ class Handler(FileSystemEventHandler):
             print("event had occured", event.event_type)
 
             # Get relative path of file/dir
-            relative_path = event.src_path[len(MY_DIR) + 1:]
+            relative_path = event.src_path[len(client_dir) + 1:]
             print('SUBJECT FILE: ' + relative_path)
             # in case client modified something in its files
             #        if event.event_type == 'modified':
@@ -127,7 +127,8 @@ class Handler(FileSystemEventHandler):
                     # Event is created, you can process it now
                 print("Watchdog received created event - % s." % relative_path)
             elif event.event_type == 'moved':
-                wd_queue.append(('movdir',))
+                # sending sorce and destination path.
+                wd_queue.append(('movdir', event.src_path, event.dest_path))
             elif event.event_type == 'deleted':
                 if event.is_directory:
                     # lib.sendToken(my_socket, 'rmdir', [relative_path])
@@ -144,7 +145,7 @@ class Handler(FileSystemEventHandler):
                 #     wd_queue.append(('movfile', relative_path))
             if watch_dog_switch:
                 print("were closing")
-                proccess_wd_dequeue(MY_DIR)
+                proccess_wd_dequeue(client_dir)
                 process_dequeue()
                 close_connection()
 
@@ -221,12 +222,12 @@ def on_start_up(s, buff):
     '''
     # open_connection()
     global client_id, my_buff
-    if len(sys.argv) == 6:
+    if len(sys.argv) == 5:
         lib.sendToken(s, 'su', [])
         my_buff, client_id = lib.getToken(s, buff)
         client_instance_id = '0'
 
-    elif len(sys.argv) == 7:
+    elif len(sys.argv) == 6:
         client_id = sys.argv[6]
         lib.sendToken(my_socket, 'identify', [client_id, '-1'])
         my_buff, client_instance_id = lib.getToken(my_socket, my_buff)
@@ -253,13 +254,13 @@ def process_server_instructions():
             break
         my_buff, path_token = lib.getToken(my_socket, my_buff)
         if command_token == 'mkdir':
-            lib.create_dir(os.path.join(MY_DIR, path_token))
+            lib.create_dir(os.path.join(client_dir, path_token))
         elif command_token == 'mkfile':
-            abs_path = os.path.join(MY_DIR, path_token)
-            lib.create_file(MY_DIR, path_token)
+            abs_path = os.path.join(client_dir, path_token)
+            lib.create_file(client_dir, path_token)
             lib.rcv_file(my_socket, my_buff, abs_path)
         elif command_token == 'rmdir' or command_token == 'rmfile':
-            abs_path = os.path.join(MY_DIR, path_token)
+            abs_path = os.path.join(client_dir, path_token)
             lib.remove_all_files_and_dirs([path_token], abs_path)
         elif command_token == 'movdir' or command_token == 'movfile':
             pass

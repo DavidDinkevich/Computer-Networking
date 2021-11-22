@@ -133,7 +133,11 @@ def dequeue_all(queue):
         item = queue.pop(0)
         # send the token to the client
         lib.sendToken(client_socket, item[0], [item[1]])
-        # NEED TO SEND FILE DATA
+        # in case command is mkfile
+        # need to test it
+        if item[0] == 'mkfile':
+            abs_path = os.path.join(SERVER_DIR, item[1])
+            lib.send_data(client_socket, abs_path, item[1])
 
 
 '''
