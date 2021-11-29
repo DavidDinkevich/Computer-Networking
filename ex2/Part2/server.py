@@ -19,6 +19,8 @@ global client_addr
 
 # Maps account id to number of instances logged in to that id
 instance_count_map = {}
+# Maps account id + instance num to unique list of pending updates
+changes_map = {}
 
 def generate_id():
     return str(''.join(random.choices(string.ascii_uppercase + string.ascii_lowercase + string.digits, k=10)))
@@ -27,28 +29,42 @@ def generate_id():
 
 def identify_new_client():
     global server_rcv_buff, curr_client_id, curr_client_inst, instance_account_map
-    # Get client id
+    # Set client id
     server_rcv_buff, curr_client_id = lib.get_token(client_socket, server_rcv_buff)
-    # Get client instance num
+    # Set client instance num
     server_rcv_buff, curr_client_inst = lib.get_token(client_socket, server_rcv_buff)
+    # New ID and new instance
     if curr_client_id == '-1':
         # Generate and send new ID for client
         new_id = generate_id()
-        # Update variable
-        curr_client_id = new_id
         # Add new ID to instance_count_map
         instance_count_map[new_id] = 0
         # Generate new folder for client
         os.mkdir(os.path.join(SERVER_DIR, new_id))
-        print('Made dir')
         # Send client new ID
         lib.send_token(client_socket, [new_id, '0'])
-
+        # Update variable
+        curr_client_id = new_id
+        curr_client_inst = 0
+ # Add new entry to changes map
+        changes_map[(curr_client_id, curr_client_inst)] = []
+    # Existing ID but new instance
     elif curr_client_inst == '-1':
+        # Increase instance count
         instance_count_map[curr_client_id] += 1
+        # Get new instance num
         new_inst_id = str(instance_count_map[curr_client_id])
+        # Update variable
+        curr_client_inst = new_inst_id
         lib.send_token(client_socket, [new_inst_id])
-
+        # Add new entry to changes map
+        changes_map[(curr_client_id, curr_client_inst)] = []
+    
+def add_change(change):
+    for (acc_id, inst_num) in changes_map:
+        if acc_id == curr_client_id and inst_num != curr_client_inst:
+            changes_map[(acc_id, inst_num)].append(change)
+    print('Updated changes map: ', change, changes_map)
 
 def process_command(cmd_token):
     global server_rcv_buff
@@ -56,12 +72,60 @@ def process_command(cmd_token):
     if cmd_token == 'identify':
         identify_new_client()
     elif cmd_token == 'mkfile':
+        # Name of file
         server_rcv_buff, file_name = lib.get_token(client_socket, server_rcv_buff)
         # Creare file
         abs_path = os.path.join(SERVER_DIR, curr_client_id, file_name)
         lib.create_file(abs_path)
         # Receive file data
         lib.rcv_file(client_socket, server_rcv_buff, abs_path)
+    elif cmd_token == 'mkdir' or cmd_token == 'rmdir' or cmd_token == 'rmfile':
+        # Name of directory/file
+        server_rcv_buff, dir_name = lib.get_token(client_socket, server_rcv_buff)
+        # Creare dir
+        abs_path = os.path.join(SERVER_DIR, curr_client_id, dir_name)
+        # Delete directory or file accordingly
+        if cmd_token == 'mkdir':
+            os.mkdir(abs_path)
+            # Update changes map
+            add_change(('mkdir', dir_name))
+        elif cmd_token == 'rmdir':
+            os.rmdir(abs_path)
+        elif cmd_token == 'rmfile':
+            os.remove(abs_path)
+    elif cmd_token == 'modfile':
+        server_rcv_buff, file_name = lib.get_token(client_socket, server_rcv_buff)
+        # Convert 'modfile' to remove + create
+        server_rcv_buff.insert(0, 'rmfile')
+        server_rcv_buff.insert(1, file_name)
+        server_rcv_buff.insert(2, 'mkfile')
+        server_rcv_buff.insert(3, file_name)
+    elif cmd_token == 'mov':
+        # Get relative paths of both src and dest
+        server_rcv_buff, src_path = lib.get_token(client_socket, server_rcv_buff)
+        server_rcv_buff, dest_path = lib.get_token(client_socket, server_rcv_buff)
+        # Get absolute paths
+        abs_src_path = os.path.join(SERVER_DIR, curr_client_id, src_path)
+        abs_dest_path = os.path.join(SERVER_DIR, curr_client_id, dest_path)
+        # Move the files
+        os.renames(abs_src_path, abs_dest_path)
+
+    elif cmd_token == 'pull':
+        update_client()
+    
+
+def update_client():
+    for change in changes_map[(curr_client_id, curr_client_inst)]:
+        if change[0] == 'mkfile':
+            abs_file_path = change[1]
+            rel_file_path = abs_file_path[len(SERVER_DIR + curr_client_id + 2):]
+            lib.send_file(client_socket, 'mkfile', abs_file_path, rel_file_path)
+        else:
+            args = [change[0], change[1]] if len(change) == 2 else [change[0], change[1], change[2]]
+            lib.send_token(client_socket, args)
+        
+    # Clear changes map
+    changes_map[(curr_client_id, curr_client_inst)].clear()
 
 
 if __name__ == "__main__":
