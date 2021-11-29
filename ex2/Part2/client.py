@@ -19,30 +19,42 @@ def open_connection():
 #
 def close_connection():
     client_socket.close()
-
-def on_start_up(s, buff):
+    
+def login_procedure():
     global client_id
     global client_instance_id
     global client_rcv_buff
 
-    open_connection()
     if len(sys.argv) == 6:
         print('Signing up...')
+        # Tell server we are completely new and get new ID and instance num
         lib.send_token(client_socket, ['identify', '-1', '-1'])
         client_rcv_buff, client_id = lib.get_token(client_socket, client_rcv_buff)
         client_rcv_buff, client_instance_id = lib.get_token(client_socket, client_rcv_buff)
         print('Received identity:', client_id, client_instance_id)
-#        lib.sendToken(s, 'su', [])
-#        my_buff, client_id = lib.get_token(s, buff)
     elif len(sys.argv) == 7:
         client_id = sys.argv[6]
         print("Init with client id:", client_id)
-#    pull_request()
-    print("end pull")
-#    lib.sendToken(client_socket, 'fin', [])
+        lib.send_token(client_socket, ['identify', client_id, '-1'])
+        client_rcv_buff, client_instance_id = lib.get_token(client_socket, client_rcv_buff)
+        print('Received instance num:', client_instance_id)
+
+
+def on_start_up():
+    open_connection()
+    login_procedure()
+    
+    #lib.send_file(client_socket, 'client_dir/img.png', 'img.png')
+    lib.send_file(client_socket, 'client_dir/apple.txt', 'apple.txt')
     close_connection()
 
 
+
+
+    print("end pull")
+#    lib.sendToken(client_socket, 'fin', [])
+
+
 if __name__ == "__main__":
-    on_start_up(client_socket, client_rcv_buff)
+    on_start_up()
     print("arrived here")

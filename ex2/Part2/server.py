@@ -5,6 +5,7 @@ import lib
 import sys
 import random
 import string
+import os
 
 SERVER_DIR = "server_dir"
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -33,9 +34,16 @@ def identify_new_client():
     if curr_client_id == '-1':
         # Generate and send new ID for client
         new_id = generate_id()
-        lib.send_token(client_socket, [new_id, '0'])
+        # Update variable
+        curr_client_id = new_id
         # Add new ID to instance_count_map
         instance_count_map[new_id] = 0
+        # Generate new folder for client
+        os.mkdir(os.path.join(SERVER_DIR, new_id))
+        print('Made dir')
+        # Send client new ID
+        lib.send_token(client_socket, [new_id, '0'])
+
     elif curr_client_inst == '-1':
         instance_count_map[curr_client_id] += 1
         new_inst_id = str(instance_count_map[curr_client_id])
@@ -43,8 +51,17 @@ def identify_new_client():
 
 
 def process_command(cmd_token):
+    global server_rcv_buff
+    
     if cmd_token == 'identify':
         identify_new_client()
+    elif cmd_token == 'mkfile':
+        server_rcv_buff, file_name = lib.get_token(client_socket, server_rcv_buff)
+        # Creare file
+        abs_path = os.path.join(SERVER_DIR, curr_client_id, file_name)
+        lib.create_file(abs_path)
+        # Receive file data
+        lib.rcv_file(client_socket, server_rcv_buff, abs_path)
 
 
 if __name__ == "__main__":
@@ -71,9 +88,10 @@ if __name__ == "__main__":
                 time.sleep(1)
             except:
                 sys.exit(1)
+            print('Server main loop calling gettoken')
             server_rcv_buff, cmd_token = lib.get_token(client_socket, server_rcv_buff)
             print("Received command from client: ", cmd_token)
-            if cmd_token == 'fin' or cmd_token is None:
+            if cmd_token == 'fin':
                 print("were breaking")
                 break
             process_command(cmd_token)
