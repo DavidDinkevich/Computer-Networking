@@ -1,42 +1,34 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 
 import socket
+import os
+
 
 SEP_CHAR = '|'
 
-lang = {
-    "su": (0, 1),
-    "pull": (1, 0),
-    "mkfile": (2, 0),
-    "movfile": (2, 0),
-    "movdir": (2, 0),
-    "rmf": (1, 0),
-    "rmdir": (1, 0)  # Recursive
-}
+def send_token(socket, args, encode=True):
+    assert len(args) > 0, "send_token: length of args in send_token must be > 0"
+    if encode:
+        msg = (SEP_CHAR.join(args) + SEP_CHAR).encode()
+        print("Sending message: ", msg)
+        socket.send(msg)
+    # in case its pure data and not files or dirs
+    else:
+        assert len(args) == 1, "send_token: encode=False but len(args) != 1"
+        socket.send(args[0])
 
-
-def sendToken(socket, cmd, args):
-    msg = cmd + SEP_CHAR + SEP_CHAR.join(args)
-    if len(args) > 0:
-        msg += SEP_CHAR
-
-    print("Sending message to client: ", msg)
-    socket.send(msg.encode())
-
-
-def getToken(socket, buff):
-    '''
-    we check if the buffer is empty.
-    if its empty then we want to pull more data from the socket.
-    '''
+def get_token(socket, buff, decode=True, num_bytes_to_read=2048):
+    # If buffer is empty, must read from socket
     if len(buff) == 0:
-        data = socket.recv(1024)
-        str_data = data.decode('utf8')
-        temp = str_data.split(SEP_CHAR)[:-1]
-        buff = buff + temp
-        print('this is the buff after splitting:', buff)
-    'whether its empty or not, we want to return one command_token from the buff list we have 😀'
+        # need to check buffer limit, if there is still data left to pull.
+        data = socket.recv(num_bytes_to_read)
+        if decode:
+            str_data = data.decode('utf8')
+            temp = str_data.split(SEP_CHAR)[:-1]
+            buff = buff + temp
+        else:
+            assert len(data) == num_bytes_to_read, "get_token: decode=False but given num bytes to read not accurate"
+            buff.append(data)
+    # whether its empty or not, we want to return one command_token from the buff list we have 😀'
     if len(buff) > 0:
         return buff, buff.pop(0)
     return buff, None
