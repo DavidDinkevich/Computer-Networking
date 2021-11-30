@@ -68,6 +68,9 @@ def write_data(abs_path, data):
 def create_file(abs_path):
     f = open(abs_path, 'w')
     f.close()
+    
+def remove_last_path_element(path):
+    return path.split(os.path.sep)[-1], path[:path.rfind(os.path.sep)]
 
 '''
 Returns two arrays, the first containing all of the subdirectories
@@ -89,6 +92,9 @@ def get_dirs_and_files(top_root):
                 files.append(whole_path)
     return dirs, files
 
+'''
+Given a folder, deletes the folders and all elements inside it.
+'''
 def deep_delete(top_root):
     for root, d_names, f_names in os.walk(top_root, topdown=False):
         for file in f_names:
@@ -97,28 +103,36 @@ def deep_delete(top_root):
             os.rmdir(os.path.join(root, folder))
     os.rmdir(top_root)
 
-def move_folder(old_path, new_path):
-    
-    os.renames(old_path, new_path)
+'''
+Moves a folder that is either empty or unempty
+'''
+def move_folder(move_dir_path, new_path):
+    # If folder doesn't exist, return
+    if not os.path.exists(move_dir_path):
+        return
 
-    '''if len(os.listdir(old_path)) == 0:
-        os.renames(old_path, new_path)
-    # Make dest folder
+    # If folder is empty, simply rename it
+    if len(os.listdir(move_dir_path)) == 0:
+        os.renames(move_dir_path, new_path)
+        return
+
+    # Get name of dir to be moved, as well as path of its parent dir
+    move_dir_name, root_dir = remove_last_path_element(move_dir_path)
+    # Get parent folder at destination
+    _, dest_parent = remove_last_path_element(new_path)
+    
+    # Make empty folder at dest location
     os.mkdir(new_path)
     
-    for root, d_names, f_names in os.walk(old_path, topdown=True):
+    # Loop through contents
+    for root, d_names, f_names in os.walk(move_dir_path, topdown=True):
         for file in f_names:
-            os.renames(os.path.join(old_path, root, file), os.path.join(new_path, root, file))
+            # Move file
+            os.renames(os.path.join(root, file), os.path.join(new_path, file))
         for folder in d_names:    
-            move_folder(os.path.join(root, folder), os.path.join(new_path, root, folder))
-    '''     
-
-
-
-
-
-
-
+            # Move folder recursively
+            move_folder(os.path.join(root, folder), os.path.join(new_path, folder))
+     
 
 
 

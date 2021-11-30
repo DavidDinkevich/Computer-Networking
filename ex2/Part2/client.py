@@ -234,7 +234,8 @@ def handle_server_directive(cmd_token):
         abs_src_path = os.path.join(client_dir, src_path)
         abs_dest_path = os.path.join(client_dir, dest_path)
         # Move the files
-        os.renames(abs_src_path, abs_dest_path)
+        #os.renames(abs_src_path, abs_dest_path)
+        lib.move_folder(abs_src_path, abs_dest_path)
         # Return blacklist
         return [(cmd_token, src_path, dest_path), ('mkfile', dest_path), ('rmfile', src_path)]
 
