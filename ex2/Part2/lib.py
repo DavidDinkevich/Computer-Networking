@@ -89,4 +89,36 @@ def get_dirs_and_files(top_root):
                 files.append(whole_path)
     return dirs, files
 
+def deep_delete(top_root):
+    for root, d_names, f_names in os.walk(top_root, topdown=False):
+        for file in f_names:
+            os.remove(os.path.join(root, file))
+        for folder in d_names:    
+            os.rmdir(os.path.join(root, folder))
+    os.rmdir(top_root)
+
+def move_folder(old_path, new_path):
+    
+    os.renames(old_path, new_path)
+
+    '''if len(os.listdir(old_path)) == 0:
+        os.renames(old_path, new_path)
+    # Make dest folder
+    os.mkdir(new_path)
+    
+    for root, d_names, f_names in os.walk(old_path, topdown=True):
+        for file in f_names:
+            os.renames(os.path.join(old_path, root, file), os.path.join(new_path, root, file))
+        for folder in d_names:    
+            move_folder(os.path.join(root, folder), os.path.join(new_path, root, folder))
+    '''     
+
+
+
+
+
+
+
+
+
 

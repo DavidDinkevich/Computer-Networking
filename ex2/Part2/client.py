@@ -212,7 +212,8 @@ def handle_server_directive(cmd_token):
             else:
                 print("Didn't make " + abs_path + " bc already exists")
         elif cmd_token == 'rmdir':
-            os.rmdir(abs_path)
+            lib.deep_delete(abs_path)
+#            os.rmdir(abs_path)
         elif cmd_token == 'rmfile':
             os.remove(abs_path)
         # Return partial blacklist

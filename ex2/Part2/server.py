@@ -96,7 +96,8 @@ def process_command(cmd_token):
             if not os.path.exists(abs_path):
                 os.mkdir(abs_path)
         elif cmd_token == 'rmdir':
-            os.rmdir(abs_path)
+            lib.deep_delete(abs_path)
+#            os.rmdir(abs_path)
         elif cmd_token == 'rmfile':
             os.remove(abs_path)
             
@@ -118,7 +119,8 @@ def process_command(cmd_token):
         abs_src_path = os.path.join(SERVER_DIR, curr_client_id, src_path)
         abs_dest_path = os.path.join(SERVER_DIR, curr_client_id, dest_path)
         # Move the files
-        os.renames(abs_src_path, abs_dest_path)
+        #os.renames(abs_src_path, abs_dest_path)
+        lib.move_folder(abs_src_path, abs_dest_path)
         # Update changes map
         add_change(('mov', src_path, dest_path))
 
