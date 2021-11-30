@@ -45,8 +45,8 @@ def identify_new_client():
         lib.send_token(client_socket, [new_id, '0'])
         # Update variable
         curr_client_id = new_id
-        curr_client_inst = 0
- # Add new entry to changes map
+        curr_client_inst = '0'
+        # Add new entry to changes map
         changes_map[(curr_client_id, curr_client_inst)] = []
     # Existing ID but new instance
     elif curr_client_inst == '-1':
@@ -59,6 +59,8 @@ def identify_new_client():
         lib.send_token(client_socket, [new_inst_id])
         # Add new entry to changes map
         changes_map[(curr_client_id, curr_client_inst)] = []
+        
+    print('New guy:', curr_client_id, curr_client_inst)
     
 def add_change(change):
     for (acc_id, inst_num) in changes_map:
@@ -68,6 +70,8 @@ def add_change(change):
 
 def process_command(cmd_token):
     global server_rcv_buff
+    
+    print('Server handing: ', cmd_token)
     
     if cmd_token == 'identify':
         identify_new_client()
@@ -79,6 +83,9 @@ def process_command(cmd_token):
         lib.create_file(abs_path)
         # Receive file data
         lib.rcv_file(client_socket, server_rcv_buff, abs_path)
+        # Update changes map
+        add_change(('mkfile', abs_path, file_name))
+
     elif cmd_token == 'mkdir' or cmd_token == 'rmdir' or cmd_token == 'rmfile':
         # Name of directory/file
         server_rcv_buff, dir_name = lib.get_token(client_socket, server_rcv_buff)
@@ -86,13 +93,16 @@ def process_command(cmd_token):
         abs_path = os.path.join(SERVER_DIR, curr_client_id, dir_name)
         # Delete directory or file accordingly
         if cmd_token == 'mkdir':
-            os.mkdir(abs_path)
-            # Update changes map
-            add_change(('mkdir', dir_name))
+            if not os.path.exists(abs_path):
+                os.mkdir(abs_path)
         elif cmd_token == 'rmdir':
             os.rmdir(abs_path)
         elif cmd_token == 'rmfile':
             os.remove(abs_path)
+            
+        # Update changes map
+        add_change((cmd_token, dir_name))
+
     elif cmd_token == 'modfile':
         server_rcv_buff, file_name = lib.get_token(client_socket, server_rcv_buff)
         # Convert 'modfile' to remove + create
@@ -109,23 +119,44 @@ def process_command(cmd_token):
         abs_dest_path = os.path.join(SERVER_DIR, curr_client_id, dest_path)
         # Move the files
         os.renames(abs_src_path, abs_dest_path)
+        # Update changes map
+        add_change(('mov', src_path, dest_path))
 
-    elif cmd_token == 'pull':
-        update_client()
+    elif cmd_token.startswith('pull'):
+        update_client(cmd_token == 'pull_all')
     
 
-def update_client():
-    for change in changes_map[(curr_client_id, curr_client_inst)]:
-        if change[0] == 'mkfile':
-            abs_file_path = change[1]
-            rel_file_path = abs_file_path[len(SERVER_DIR + curr_client_id + 2):]
-            lib.send_file(client_socket, 'mkfile', abs_file_path, rel_file_path)
-        else:
-            args = [change[0], change[1]] if len(change) == 2 else [change[0], change[1], change[2]]
-            lib.send_token(client_socket, args)
+def update_client(send_everything=False):
+    print('Updating client')
+    # Send all dirs and files (in that order)
+    if send_everything:
+        client_folder = os.path.join(SERVER_DIR, curr_client_id)
+        dirs, files = lib.get_dirs_and_files(client_folder)
+        for rel_path in (dirs + files):
+            abs_path = os.path.join(client_folder, rel_path)
+            if rel_path in dirs:
+                lib.send_token(client_socket, ['mkdir', rel_path])
+            else:
+                lib.send_file(client_socket, 'mkfile', abs_path, rel_path)
         
+    # Only send changes
+    else:
+        print('Map before: ', changes_map)
+        for change in changes_map[(curr_client_id, curr_client_inst)]:
+            if change[0] == 'mkfile':
+                abs_file_path = change[1]
+                rel_file_path = abs_file_path[len(SERVER_DIR + curr_client_id) + 2:]
+                lib.send_file(client_socket, 'mkfile', abs_file_path, rel_file_path)
+            else:
+                args = [change[0], change[1]] if len(change) == 2 else [change[0], change[1], change[2]]
+                print('Sending: ', change[0], change[1])
+                lib.send_token(client_socket, args)        
+        print('Map after: ', changes_map)
+
     # Clear changes map
     changes_map[(curr_client_id, curr_client_inst)].clear()
+    # Send eoc
+    lib.send_token(client_socket, ['eoc'])
 
 
 if __name__ == "__main__":
@@ -155,8 +186,11 @@ if __name__ == "__main__":
             print('Server main loop calling gettoken')
             server_rcv_buff, cmd_token = lib.get_token(client_socket, server_rcv_buff)
             print("Received command from client: ", cmd_token)
+            if cmd_token not in ['identify', 'fin']:
+                pass
             if cmd_token == 'fin':
                 print("were breaking")
                 break
-            process_command(cmd_token)
+            if cmd_token is not None:
+                process_command(cmd_token)
         client_socket.close()

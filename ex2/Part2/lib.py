@@ -37,6 +37,7 @@ def get_token(socket, buff, decode=True, num_bytes_to_read=2048):
     return buff, None
 
 def send_file(my_socket, cmd, full_file_path, relative_path):
+
     file_size = str(os.path.getsize(full_file_path))
     send_token(my_socket, [cmd, relative_path, file_size])
     time.sleep(2)
@@ -44,12 +45,9 @@ def send_file(my_socket, cmd, full_file_path, relative_path):
     with open(full_file_path, 'rb') as f:
         data = f.read(2048)
         while len(data) > 0:
-    #        print('Sending data:', data.decode(),'-', bytes(data), '-')
             send_token(my_socket, [data], encode=False)
             #my_socket.sendall(data)
             data = f.read(2048)
-            
-    #wait_for_ack(my_socket)
     
 def rcv_file(my_socket, my_buff, abs_path):
     my_buff, size = get_token(my_socket, my_buff)
@@ -71,6 +69,24 @@ def create_file(abs_path):
     f = open(abs_path, 'w')
     f.close()
 
+'''
+Returns two arrays, the first containing all of the subdirectories
+(of all depths) of top_root, and the second containing all of the files
+(of all depths) of top_root. All paths do not begin with top_root.
+'''
 
+def get_dirs_and_files(top_root):
+    dirs = []
+    files = []
+    for root, d_names, f_names in os.walk(top_root):
+        dirs_then_names = d_names + f_names
+        for item in dirs_then_names:
+            whole_path = os.path.join(root, item)
+            whole_path = whole_path[len(top_root) + 1:]
+            if item in d_names:
+                dirs.append(whole_path)
+            else:
+                files.append(whole_path)
+    return dirs, files
 
 
