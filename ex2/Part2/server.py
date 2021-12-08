@@ -99,8 +99,13 @@ def process_command(cmd_token):
             lib.deep_delete(abs_path)
 #            os.rmdir(abs_path)
         elif cmd_token == 'rmfile':
-            os.remove(abs_path)
-            
+            # check bugged case remove file but its dir:
+            if lib.is_dir(abs_path):
+                # need to check if there are recursive files inside this dir,if so we need to delete them aswell.
+                lib.deep_delete(abs_path)
+            else:
+                os.remove(abs_path)
+
         # Update changes map
         add_change((cmd_token, dir_name))
 
@@ -134,25 +139,20 @@ def update_client(send_everything=False):
     if send_everything:
         client_folder = os.path.join(SERVER_DIR, curr_client_id)
         dirs, files = lib.get_dirs_and_files(client_folder)
-        for rel_path in (dirs + files):
-            abs_path = os.path.join(client_folder, rel_path)
-            if rel_path in dirs:
-                lib.send_token(client_socket, ['mkdir', rel_path])
-            else:
-                lib.send_file(client_socket, 'mkfile', abs_path, rel_path)
-        
+        lib.send_all_dirs_and_files(client_socket, dirs, files, client_folder)
+
     # Only send changes
     else:
         print('Map before: ', changes_map)
         for change in changes_map[(curr_client_id, curr_client_inst)]:
             if change[0] == 'mkfile':
                 abs_file_path = change[1]
-                rel_file_path = abs_file_path[len(SERVER_DIR + curr_client_id) + 2:]
+                rel_file_path = abs_file_path[len(SERVER_DIR + curr_client_id) + len(os.path.sep):]
                 lib.send_file(client_socket, 'mkfile', abs_file_path, rel_file_path)
             else:
                 args = [change[0], change[1]] if len(change) == 2 else [change[0], change[1], change[2]]
                 print('Sending: ', change[0], change[1])
-                lib.send_token(client_socket, args)        
+                lib.send_token(client_socket, args)
         print('Map after: ', changes_map)
 
     # Clear changes map

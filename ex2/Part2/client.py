@@ -157,6 +157,12 @@ def login_procedure():
         lib.send_token(client_socket, ['identify', '-1', '-1'])
         client_rcv_buff, client_id = lib.get_token(client_socket, client_rcv_buff)
         client_rcv_buff, client_instance_id = lib.get_token(client_socket, client_rcv_buff)
+        # get all files and dirs from current file(if there are such files)
+        # send all the files to the server.
+        dir_arr, file_arr = lib.get_dirs_and_files(client_dir)
+        # send all files and dirs (if they exists):
+        lib.send_all_dirs_and_files(client_socket, dir_arr, file_arr, client_dir)
+
         print('Received identity:', client_id, client_instance_id)
     elif len(sys.argv) == 6:
         client_id = sys.argv[5]
@@ -233,25 +239,25 @@ def handle_server_directive(cmd_token):
         # Get absolute paths
         abs_src_path = os.path.join(client_dir, src_path)
         abs_dest_path = os.path.join(client_dir, dest_path)
-        # Move the files
-        #os.renames(abs_src_path, abs_dest_path)
-        lib.move_folder(abs_src_path, abs_dest_path)
+        abs_abs_path = lib.get_abs_path(abs_dest_path)
+        # Check if move file is needed
+        if not os.path.exists(abs_abs_path):
+            # Move the files
+            # os.renames(abs_src_path, abs_dest_path)
+            lib.move_folder(abs_src_path, abs_dest_path)
         # Return blacklist
         return [(cmd_token, src_path, dest_path), ('mkfile', dest_path), ('rmfile', src_path)]
 
 
 def on_start_up():
-    # Make client folder
-    if os.path.exists(client_dir):
-        lib.deep_delete(client_dir)
-    os.mkdir(client_dir)
-    
     open_connection()
     login_procedure()
+
     close_connection()
 
 
     print("end pull")
+#    lib.sendToken(client_socket, 'fin', [])
 
 
 if __name__ == "__main__":
