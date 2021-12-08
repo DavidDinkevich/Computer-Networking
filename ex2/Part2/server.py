@@ -181,9 +181,7 @@ if __name__ == "__main__":
 
        
         client_socket, client_address = server.accept()
-       
         while True:
-            
             server_rcv_buff, cmd_token = utils.get_token(client_socket, server_rcv_buff)
             
             if cmd_token == 'fin':
