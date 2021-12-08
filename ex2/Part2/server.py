@@ -164,18 +164,12 @@ def update_client(send_everything=False):
 
 
 if __name__ == "__main__":
-    server_port = int(sys.argv[1])
+    # GET SERVER PORT
+    server_port = lib.validate_port(sys.argv[1])
     
-    # Open server
-    while True:
-        try:
-            server.bind(('', server_port))
-            break
-        except:
-            print("Couldn't open server, trying again")
-            time.sleep(3)
-    server.listen()
-
+    if server_port is None:
+        sys.exit(1)
+    
     # Begin receiving clients
     while True:
         global client_socket
@@ -185,15 +179,9 @@ if __name__ == "__main__":
         client_socket, client_address = server.accept()
         print('Connection from: ', client_address)
         while True:
-            try:
-                time.sleep(1)
-            except:
-                sys.exit(1)
-            print('Server main loop calling gettoken')
+            #print('Server main loop calling gettoken')
             server_rcv_buff, cmd_token = lib.get_token(client_socket, server_rcv_buff)
-            print("Received command from client: ", cmd_token)
-            if cmd_token not in ['identify', 'fin']:
-                pass
+            #print("Received command from client: ", cmd_token)
             if cmd_token == 'fin':
                 print("were breaking")
                 break

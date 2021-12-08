@@ -17,10 +17,10 @@ client_instance_id = '-1'
 client_socket = None
 client_rcv_buff = []
 
-server_ip = sys.argv[1]
-server_port = int(sys.argv[2])
-client_dir = sys.argv[3]
-wd_time = int(sys.argv[4])
+server_ip = None
+server_port = None
+client_dir = None
+wd_time = None
 
 
 # =======================================
@@ -33,7 +33,7 @@ blacklist = []
 
 class OnMyWatch:
     # Set the directory on watch
-    watchDirectory = client_dir
+    #watchDirectory = client_dir
 
     def __init__(self):
         print("observer started")
@@ -42,7 +42,7 @@ class OnMyWatch:
     def run(self):
         global watch_dog_switch, blacklist
         event_handler = Handler()
-        self.observer.schedule(event_handler, self.watchDirectory, recursive=True)
+        self.observer.schedule(event_handler, client_dir, recursive=True)
         self.observer.start()
         try:
             while True:
@@ -266,13 +266,35 @@ def handle_server_directive(cmd_token):
 
 
 def on_start_up():
+    # Get input args
+    global server_ip, server_port, client_dir, wd_time
+    if len(sys.argv) < 5 or len(sys.argv) > 6:
+        print("Invalid number of arguments, terminating program.")
+        sys.exit(1)
+    
+    # VALIDATE INPUT
+    server_ip = lib.validate_ip(sys.argv[1])
+    server_port = lib.validate_port(sys.argv[2])
+    client_dir = sys.argv[3]
+    wd_time = int(sys.argv[4])
+    
+    if server_ip is None or server_port is None:
+        sys.exit(1)
+    # Validate wd_time
+    if wd_time <= 0:
+        print('Sleep period must be a positive whole number')
+        sys.exit(1)
+
+    
+    # Make folder if doesn't exist
+    if not os.path.exists(client_dir):
+        os.makedirs(client_dir)
+    
     open_connection()
     login_procedure()
     close_connection()
 
-
     print("end pull")
-#    lib.sendToken(client_socket, 'fin', [])
 
 
 if __name__ == "__main__":

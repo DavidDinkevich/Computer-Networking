@@ -22,10 +22,10 @@ def is_dir(relative_path):
     abs_path = os.path.abspath(relative_path)
     return os.path.isdir(abs_path)
 
-
 def get_abs_path(path):
     return os.path.abspath(path)
-def get_token(socket, buff, decode=True, num_bytes_to_read=-1):
+
+def get_token(socket, buff, num_bytes_to_read=-1):
     # If buffer is empty, must read from socket
     if len(buff) == 0:
         if num_bytes_to_read >= 0:
@@ -64,11 +64,7 @@ def send_file(my_socket, cmd, full_file_path, relative_path):
     with open(full_file_path, 'rb') as f:
         data = f.read(2048)
         while len(data) > 0:
-            #send_token(my_socket, [str(len(data))])
             send_token(my_socket, [data], encode=False)
-#            send_token(my_socket, [SEP_CHAR.encode()], encode=False)
-
-            #my_socket.sendall(data)
             data = f.read(2048)
     
 def rcv_file(my_socket, my_buff, abs_path):
@@ -110,7 +106,7 @@ def get_dirs_and_files(top_root):
         dirs_then_names = d_names + f_names
         for item in dirs_then_names:
             whole_path = os.path.join(root, item)
-            whole_path = whole_path[len(top_root) + 1:]
+            whole_path = whole_path[len(top_root) + len(os.path.sep):]
             if item in d_names:
                 dirs.append(whole_path)
             else:
@@ -172,5 +168,46 @@ def is_folder_empty(dir_path):
         if len(d_names) + len(f_names) > 0:
             return False
     return True
+
+
+# ==============================
+# ====  INPUT VERIFICATION  ====
+# ==============================
+
+
+def validate_port(port_num):
+    if not port_num.isdigit() or int(port_num) < 1 or int(port_num) > 65535:
+        print('Invalid port number.')
+        return None
+    return int(port_num)
+
+def validate_ip(ip_addr):
+    try:
+        socket.inet_aton(ip_addr)
+        # If we got here, IP is legal
+        return ip_addr
+    except socket.error:
+        # IP is illegal
+        print('Invalid IP address')
+        return None
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
