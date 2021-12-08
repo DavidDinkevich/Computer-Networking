@@ -4,7 +4,6 @@ import os
 import time
 
 MSG_LEN_NUM_BYTES = 4
-decode_next_msg = True
 
 def send_token(socket, args, encode=True):
     #assert len(args) > 0, "send_token: length of args in send_token must be > 0"
