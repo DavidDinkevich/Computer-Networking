@@ -91,8 +91,9 @@ class Handler(FileSystemEventHandler):
             
         elif event.event_type == 'moved':
             print("Watchdog received moved event - (% s)." % relative_path)
-            relative_dest_path = event.dest_path[len(client_dir) + 1:]
+            relative_dest_path = event.dest_path[len(client_dir) + len(os.path.sep):]
             #lib.send_token(client_socket, ['mov', relative_path, relative_dest_path])
+            ##NEED TO DELETE THE MAKE FROM LIST
             event_push_queue.append(('mov', relative_path, relative_dest_path))
 
         elif event.event_type == 'deleted':
@@ -123,6 +124,7 @@ def flush_push_event_queue():
         else:
             print(client_instance_id + ' telling server to ' + str(item))
             if item[0] == 'mkfile':
+
                 lib.send_file(client_socket, 'mkfile', item[1], item[2])
             elif item[0] == 'mov':
                 lib.send_token(client_socket, [item[0], item[1], item[2]])
