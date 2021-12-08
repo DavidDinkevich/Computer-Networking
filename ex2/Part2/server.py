@@ -170,6 +170,9 @@ if __name__ == "__main__":
     if server_port is None:
         sys.exit(1)
     
+    server.bind(('', server_port))
+    server.listen()
+    
     # Begin receiving clients
     while True:
         global client_socket
