@@ -147,16 +147,18 @@ def update_client(send_everything=False):
         for change in changes_map[(curr_client_id, curr_client_inst)]:
             if change[0] == 'mkfile':
                 abs_file_path = change[1]
-                rel_file_path = abs_file_path[len(SERVER_DIR + curr_client_id) + len(os.path.sep):]
+                rel_file_path = abs_file_path[
+                    len(os.path.join(SERVER_DIR, curr_client_id)) + len(os.path.sep):]
+#                rel_file_path = abs_file_path[len(SERVER_DIR + curr_client_id) + len(os.path.sep):]
                 lib.send_file(client_socket, 'mkfile', abs_file_path, rel_file_path)
             else:
                 args = [change[0], change[1]] if len(change) == 2 else [change[0], change[1], change[2]]
                 print('Sending: ', change[0], change[1])
                 lib.send_token(client_socket, args)
-        print('Map after: ', changes_map)
 
     # Clear changes map
     changes_map[(curr_client_id, curr_client_inst)].clear()
+    print('Map after: ', changes_map)
     # Send eoc
     lib.send_token(client_socket, ['eoc'])
 

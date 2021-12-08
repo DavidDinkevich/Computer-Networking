@@ -53,6 +53,9 @@ def get_token(socket, buff, decode=True, num_bytes_to_read=-1):
     return buff, None
 
 def send_file(my_socket, cmd, full_file_path, relative_path):
+    if not os.path.exists(full_file_path):
+        return
+    
     file_size = os.path.getsize(full_file_path)
     send_token(my_socket, [cmd, relative_path, str(file_size)])
     if file_size == 0:

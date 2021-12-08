@@ -66,6 +66,7 @@ class OnMyWatch:
 class Handler(FileSystemEventHandler):
     @staticmethod
     def on_any_event(event):
+        global event_push_queue
 
         file_name = event.src_path.split(os.path.sep)[-1]
         print('Event in general:', event.src_path)
@@ -93,7 +94,22 @@ class Handler(FileSystemEventHandler):
             print("Watchdog received moved event - (% s)." % relative_path)
             relative_dest_path = event.dest_path[len(client_dir) + len(os.path.sep):]
             #lib.send_token(client_socket, ['mov', relative_path, relative_dest_path])
-            ##NEED TO DELETE THE MAKE FROM LIST
+            
+            # Update all old references to the old location to the new one
+            new_event_push_queue = []
+            for ev in event_push_queue:
+                if ev[1].find(relative_path) >= 0:
+                    new_event_push_queue.append(ev)
+                elif ev[0] == 'mkfile' and ev[1].find(relative_path) >= 0:
+                    old_ev = ev
+                    ev[1] = os.path.join(client_dir, relative_dest_path)
+                    ev[1] = relative_dest_path
+                    new_event_push_queue.append(ev)
+                    print('Turned ', old_ev, ' into ', ev)
+                else:    
+                    print('In mov: removing: ', ev, ' bc its outdated')
+            event_push_queue = new_event_push_queue
+            
             event_push_queue.append(('mov', relative_path, relative_dest_path))
 
         elif event.event_type == 'deleted':
@@ -124,7 +140,6 @@ def flush_push_event_queue():
         else:
             print(client_instance_id + ' telling server to ' + str(item))
             if item[0] == 'mkfile':
-
                 lib.send_file(client_socket, 'mkfile', item[1], item[2])
             elif item[0] == 'mov':
                 lib.send_token(client_socket, [item[0], item[1], item[2]])
@@ -254,7 +269,6 @@ def handle_server_directive(cmd_token):
 def on_start_up():
     open_connection()
     login_procedure()
-
     close_connection()
 
 
