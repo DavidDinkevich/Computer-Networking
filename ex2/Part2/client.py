@@ -98,14 +98,13 @@ class Handler(FileSystemEventHandler):
             # Update all old references to the old location to the new one
             new_event_push_queue = []
             for ev in event_push_queue:
-                if ev[1].find(relative_path) >= 0:
+                if ev[1].find(relative_path) == -1:
                     new_event_push_queue.append(ev)
                 elif ev[0] == 'mkfile' and ev[1].find(relative_path) >= 0:
-                    old_ev = ev
-                    ev[1] = os.path.join(client_dir, relative_dest_path)
-                    ev[1] = relative_dest_path
-                    new_event_push_queue.append(ev)
-                    print('Turned ', old_ev, ' into ', ev)
+                    new_full_path = os.path.join(client_dir, relative_dest_path)
+                    new_rel_path = relative_dest_path
+                    new_event_push_queue.append(('mkfile', new_full_path, new_rel_path))
+                    print('Turned ', ev, ' into ', new_event_push_queue[-1])
                 else:    
                     print('In mov: removing: ', ev, ' bc its outdated')
             event_push_queue = new_event_push_queue
