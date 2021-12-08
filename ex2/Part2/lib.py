@@ -1,7 +1,6 @@
 
 import socket
 import os
-import time
 
 MSG_LEN_NUM_BYTES = 4
 
@@ -20,7 +19,6 @@ def send_token(socket, args, encode=True):
         #socket.sendall(SEP_CHAR.encode())
 
 def get_token(socket, buff, decode=True, num_bytes_to_read=-1):
-    global decode_next_msg
     # If buffer is empty, must read from socket
     if len(buff) == 0:
         if num_bytes_to_read >= 0:
@@ -39,8 +37,7 @@ def get_token(socket, buff, decode=True, num_bytes_to_read=-1):
                 #print('Uh oh... tried to decode:', decoded[:15], '...', decoded[-15:])
         
         print('Got message: ', num_bytes_to_read, buff[-1][:15], '...', buff[-1][-15:])
-       # buff.extend(final_chunks)
-        
+
 
     # whether its empty or not, we want to return one command_token from the buff list we have 😀'
     if len(buff) > 0:
@@ -49,8 +46,6 @@ def get_token(socket, buff, decode=True, num_bytes_to_read=-1):
     return buff, None
 
 def send_file(my_socket, cmd, full_file_path, relative_path):
-    global decode_next_msg
-
     file_size = os.path.getsize(full_file_path)
     send_token(my_socket, [cmd, relative_path, str(file_size)])
     if file_size == 0:
@@ -112,6 +107,14 @@ def get_dirs_and_files(top_root):
                 files.append(whole_path)
     return dirs, files
 
+def send_all_dirs_and_files(socket, dirs, files, dest_folder):
+    for rel_path in (dirs + files):
+        abs_path = os.path.join(dest_folder, rel_path)
+        if rel_path in dirs:
+            send_token(socket, ['mkdir', rel_path])
+        else:
+            send_file(socket, 'mkfile', abs_path, rel_path)
+
 '''
 Given a folder, deletes the folders and all elements inside it.
 '''
@@ -156,9 +159,7 @@ def move_folder(move_dir_path, new_path):
 
 def is_folder_empty(dir_path):
     for root, d_names, f_names in os.walk(dir_path, topdown=True):
-        for file in f_names:
-            return False
-        for folder in d_names:    
+        if len(d_names) + len(f_names) > 0:
             return False
     return True
 
