@@ -8,16 +8,23 @@ def send_token(socket, args, encode=True):
     #assert len(args) > 0, "send_token: length of args in send_token must be > 0"
     if encode:
         for arg in args:
-            len_bytes = len(arg).to_bytes(MSG_LEN_NUM_BYTES, 'little')
+            encoded = arg.encode('utf-8')
+            len_bytes = len(encoded).to_bytes(MSG_LEN_NUM_BYTES, 'little')
             #print("Sending message: ", msg)
-            socket.sendall(len_bytes + arg.encode())
+            socket.sendall(len_bytes + encoded)
     # in case its pure data and not files or dirs
     else:
         assert len(args) == 1, "send_token: encode=False but len(args) != 1"
-        len_bytes = len(args[0]).to_bytes(MSG_LEN_NUM_BYTES, 'little')
         socket.sendall(args[0])
         #socket.sendall(SEP_CHAR.encode())
 
+def is_dir(relative_path):
+    abs_path = os.path.abspath(relative_path)
+    return os.path.isdir(abs_path)
+
+
+def get_abs_path(path):
+    return os.path.abspath(path)
 def get_token(socket, buff, decode=True, num_bytes_to_read=-1):
     # If buffer is empty, must read from socket
     if len(buff) == 0:
@@ -30,11 +37,11 @@ def get_token(socket, buff, decode=True, num_bytes_to_read=-1):
             data = socket.recv(num_bytes_to_read)
             #print('Got raw: ', msg_len, data.decode())
             try:
-                decoded = data.decode()
+                decoded = data.decode('UTF-8')
                 buff.append(decoded)
             except:
                 buff.append(data)
-                #print('Uh oh... tried to decode:', decoded[:15], '...', decoded[-15:])
+                print('Uh oh... tried to decode:', data[:15], '...', data[-15:])
         
         print('Got message: ', num_bytes_to_read, buff[-1][:15], '...', buff[-1][-15:])
 
@@ -135,7 +142,7 @@ def move_folder(move_dir_path, new_path):
         return
 
     # If folder is empty, simply rename it
-    if is_folder_empty(move_dir_path) == 0:
+    if is_folder_empty(move_dir_path):
         os.renames(move_dir_path, new_path)
         return
 
