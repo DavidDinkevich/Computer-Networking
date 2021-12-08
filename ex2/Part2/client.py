@@ -95,21 +95,25 @@ class Handler(FileSystemEventHandler):
             relative_dest_path = event.dest_path[len(client_dir) + len(os.path.sep):]
             #lib.send_token(client_socket, ['mov', relative_path, relative_dest_path])
             
-            # Update all old references to the old location to the new one
-            new_event_push_queue = []
-            for ev in event_push_queue:
-                if ev[1].find(relative_path) == -1:
-                    new_event_push_queue.append(ev)
-                elif ev[0] == 'mkfile' and ev[1].find(relative_path) >= 0:
-                    new_full_path = os.path.join(client_dir, relative_dest_path)
-                    new_rel_path = relative_dest_path
-                    new_event_push_queue.append(('mkfile', new_full_path, new_rel_path))
-                    print('Turned ', ev, ' into ', new_event_push_queue[-1])
-                else:    
-                    print('In mov: removing: ', ev, ' bc its outdated')
-            event_push_queue = new_event_push_queue
+            old_object_is_created = False
             
-            event_push_queue.append(('mov', relative_path, relative_dest_path))
+            for i in range(len(event_push_queue) - 1, -1, -1):
+                ev = event_push_queue[i]
+                # If event mentions the object that was moved
+                if ev[1].find(relative_path) >= 0:
+                    # If the event is a make event
+                    if ev[0].startswith('mk'):
+                        old_object_is_created = True
+                        event_push_queue.pop(i) # Remove
+                    break
+                    
+            # If object wasn't created in the same sleep interval
+            if not old_object_is_created:
+                event_push_queue.append(('mov', relative_path, relative_dest_path))
+            else:
+                new_full_path = os.path.join(client_dir, relative_dest_path)
+                new_rel_path = relative_dest_path
+                event_push_queue.append(('mkfile', new_full_path, new_rel_path))
 
         elif event.event_type == 'deleted':
             print("Watchdog received deleted event - (% s)." % relative_path)
