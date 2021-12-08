@@ -73,7 +73,7 @@ def rcv_file(my_socket, my_buff, abs_path):
 
     size = int(size)
     while size > 0:
-        chunk_size = size
+        chunk_size = min(size, 1024)
         # size -= chunk_size
         my_buff, data = get_token(my_socket, my_buff, num_bytes_to_read=chunk_size)
         # data = my_socket.recv(chunk_size)
@@ -89,8 +89,13 @@ def write_data(abs_path, data):
 
 
 def create_file(abs_path):
-    f = open(abs_path, 'w')
-    f.close()
+    while True:
+        try:
+            with open(abs_path, 'w+') as f:
+                pass
+            return
+        except:
+            pass
 
 
 def remove_last_path_element(path):
