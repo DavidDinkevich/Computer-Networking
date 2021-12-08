@@ -3,33 +3,49 @@ import socket
 import os
 import time
 
-SEP_CHAR = '|'
+MSG_LEN_NUM_BYTES = 4
+decode_next_msg = True
 
 def send_token(socket, args, encode=True):
     #assert len(args) > 0, "send_token: length of args in send_token must be > 0"
     if encode:
-        msg = (SEP_CHAR.join(args) + SEP_CHAR).encode()
-        #print("Sending message: ", msg)
-        socket.sendall(msg)
+        for arg in args:
+            len_bytes = len(arg).to_bytes(MSG_LEN_NUM_BYTES, 'little')
+            #print("Sending message: ", msg)
+            socket.sendall(len_bytes + arg.encode())
     # in case its pure data and not files or dirs
     else:
         assert len(args) == 1, "send_token: encode=False but len(args) != 1"
-
+        len_bytes = len(args[0]).to_bytes(MSG_LEN_NUM_BYTES, 'little')
         socket.sendall(args[0])
+        #socket.sendall(SEP_CHAR.encode())
 
-def get_token(socket, buff, decode=True, num_bytes_to_read=2048):
+def get_token(socket, buff, decode=True, num_bytes_to_read=-1):
+    global decode_next_msg
     # If buffer is empty, must read from socket
     if len(buff) == 0:
-        data = socket.recv(num_bytes_to_read)
-
-        if decode:
-            #print('Data', bytes(data))
-            str_data = data.decode('utf8')
-            temp = str_data.split(SEP_CHAR)[:-1]
-            buff = buff + temp
-        else:
-            assert len(data) == num_bytes_to_read, "get_token: decode=False but given num bytes to read not accurate"
+        if num_bytes_to_read >= 0:
+            data = socket.recv(num_bytes_to_read)
             buff.append(data)
+        else:
+            msg_len = socket.recv(MSG_LEN_NUM_BYTES)
+            num_bytes_to_read = int.from_bytes(msg_len, 'little')
+            data = socket.recv(num_bytes_to_read)
+            #print('Got raw: ', msg_len, data.decode())
+            try:
+                decoded = data.decode()
+                if decode_next_msg:
+                    buff.append(decoded)
+                else:
+                    buff.append(data)
+            except:
+                buff.append(data)
+                #print('Uh oh... tried to decode:', decoded[:15], '...', decoded[-15:])
+        
+        print('Got message: ', num_bytes_to_read, buff[-1][:15], '...', buff[-1][-15:])
+       # buff.extend(final_chunks)
+        
+
     # whether its empty or not, we want to return one command_token from the buff list we have 😀'
     if len(buff) > 0:
        # print("Already have something", buff, buff[0])
@@ -37,29 +53,37 @@ def get_token(socket, buff, decode=True, num_bytes_to_read=2048):
     return buff, None
 
 def send_file(my_socket, cmd, full_file_path, relative_path):
+    global decode_next_msg
 
-    file_size = str(os.path.getsize(full_file_path))
-    send_token(my_socket, [cmd, relative_path, file_size])
-    time.sleep(2)
-
+    file_size = os.path.getsize(full_file_path)
+    send_token(my_socket, [cmd, relative_path, str(file_size)])
+    if file_size == 0:
+        return
+    
     with open(full_file_path, 'rb') as f:
         data = f.read(2048)
         while len(data) > 0:
+            #send_token(my_socket, [str(len(data))])
             send_token(my_socket, [data], encode=False)
+#            send_token(my_socket, [SEP_CHAR.encode()], encode=False)
+
             #my_socket.sendall(data)
             data = f.read(2048)
     
 def rcv_file(my_socket, my_buff, abs_path):
     my_buff, size = get_token(my_socket, my_buff)
+    
     size = int(size)
     while size > 0:
-        chunk_size = min(size, 2048)
-        size -= chunk_size
-        my_buff, data = get_token(my_socket, my_buff, decode=False, num_bytes_to_read=chunk_size)
-        #data = my_socket.recv(2048)
+        chunk_size = min(size, 1024)
+        #size -= chunk_size
+        my_buff, data = get_token(my_socket, my_buff, num_bytes_to_read=chunk_size)
+        #data = my_socket.recv(chunk_size)
         # Read content and write to file
+        size -= len(data)
+        print('Need ', size, ' expected, ', chunk_size, ' got: ', len(data))
+        print('Trying to write: ', data[:20], '...', data[-20:])
         write_data(abs_path, data)
-    
         
 def write_data(abs_path, data):
     with open(abs_path, 'ab') as f:

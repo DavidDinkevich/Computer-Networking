@@ -162,10 +162,12 @@ def update_client(send_everything=False):
 
 
 if __name__ == "__main__":
+    server_port = int(sys.argv[1])
+    
     # Open server
     while True:
         try:
-            server.bind(('', 12345))
+            server.bind(('', server_port))
             break
         except:
             print("Couldn't open server, trying again")
@@ -196,3 +198,4 @@ if __name__ == "__main__":
             if cmd_token is not None:
                 process_command(cmd_token)
         client_socket.close()
+        

@@ -241,49 +241,17 @@ def handle_server_directive(cmd_token):
 
 
 def on_start_up():
-
+    # Make client folder
+    if os.path.exists(client_dir):
+        lib.deep_delete(client_dir)
+    os.mkdir(client_dir)
+    
     open_connection()
     login_procedure()
-    
-    '''
-    lib.send_file(client_socket, 'mkfile', 'client_dir/img.png', 'img.png')
-    lib.send_file(client_socket, 'mkfile', 'client_dir/apple.txt', 'apple.txt')
-    lib.send_token(client_socket, ['mkdir', 'tree'])
     close_connection()
-    
-    print('Going to sleep...')
-    time.sleep(60)
-    print('Awww, what a great nap!')
-    open_connection()
-    lib.send_token(client_socket, ['identify', client_id, '0'])
-
-    
-    lib.send_token(client_socket, ['pull'])
-    client_rcv_buff, cmd_token = lib.get_token(client_socket, client_rcv_buff)
-    while cmd_token is not None:
-        handle_server_directive(cmd_token)
-    '''
-
-    
-    #lib.send_token(client_socket, ['mov', 'img.png', 'tree/img.png'])
-    
-    
-    #lib.send_token(client_socket, ['mkdir', 'pear'])
-
-    #time.sleep(30)
-    
-    #open_connection()
-    #lib.send_token(client_socket, ['identify', client_id, client_instance_id])
-    #lib.send_token(client_socket, ['rmdir', 'tree'])
-    #lib.send_file(client_socket, 'modfile', 'client_dir/apple.txt', 'apple.txt')
-    
-    close_connection()
-
-
 
 
     print("end pull")
-#    lib.sendToken(client_socket, 'fin', [])
 
 
 if __name__ == "__main__":
