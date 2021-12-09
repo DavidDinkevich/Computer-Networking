@@ -87,7 +87,7 @@ def process_command(cmd_token):
         # Name of directory/file
         server_rcv_buff, dir_name = utils.get_token(client_socket, server_rcv_buff)
         # Creare dir
-        abs_path = os.path.normpath(os.path.join(SERVER_DIR, curr_client_id, file_name))
+        abs_path = os.path.normpath(os.path.join(SERVER_DIR, curr_client_id, dir_name))
         # Delete directory or file accordingly
         if cmd_token == 'mkdir':
             if not os.path.exists(abs_path):
