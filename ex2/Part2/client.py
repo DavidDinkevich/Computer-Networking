@@ -227,7 +227,7 @@ def handle_server_directive(cmd_token):
             utils.deep_delete(abs_path)
         #            os.rmdir(abs_path)
         elif cmd_token == 'rmfile':
-            os.remove(abs_path)
+            utils.remove_file(abs_path)
         # Return partial blacklist
         return [(cmd_token, dir_name)]
 

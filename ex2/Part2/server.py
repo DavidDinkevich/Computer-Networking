@@ -74,7 +74,7 @@ def process_command(cmd_token):
     elif cmd_token == 'mkfile':
         # Name of file
         server_rcv_buff, file_name = utils.get_token(client_socket, server_rcv_buff)
-        file_name=utils.system_path(file_name)
+        file_name = utils.system_path(file_name)
         # Creare file
         # return the normal path without redundant additions between systems.
         abs_path = os.path.join(SERVER_DIR, curr_client_id, file_name)
@@ -88,7 +88,7 @@ def process_command(cmd_token):
         # Name of directory/file
         server_rcv_buff, dir_name = utils.get_token(client_socket, server_rcv_buff)
         # Creare dir
-        dir_name=utils.system_path(dir_name)
+        dir_name = utils.system_path(dir_name)
         abs_path = os.path.join(SERVER_DIR, curr_client_id, dir_name)
         # Delete directory or file accordingly
         if cmd_token == 'mkdir':
@@ -98,12 +98,7 @@ def process_command(cmd_token):
             utils.deep_delete(abs_path)
         #            os.rmdir(abs_path)
         elif cmd_token == 'rmfile':
-            # check bugged case remove file but its dir:
-            if utils.is_dir(abs_path):
-                # need to check if there are recursive files inside this dir,if so we need to delete them aswell.
-                utils.deep_delete(abs_path)
-            else:
-                os.remove(abs_path)
+            utils.remove_file(abs_path)
 
         # Update changes map
         add_change((cmd_token, dir_name))
@@ -119,8 +114,8 @@ def process_command(cmd_token):
         # Get relative paths of both src and dest
         server_rcv_buff, src_path = utils.get_token(client_socket, server_rcv_buff)
         server_rcv_buff, dest_path = utils.get_token(client_socket, server_rcv_buff)
-        src_path=utils.system_path(src_path)
-        dest_path=utils.system_path(dest_path)
+        src_path = utils.system_path(src_path)
+        dest_path = utils.system_path(dest_path)
         # Get absolute paths
         abs_src_path = os.path.join(SERVER_DIR, curr_client_id, src_path)
         abs_dest_path = os.path.join(SERVER_DIR, curr_client_id, dest_path)
