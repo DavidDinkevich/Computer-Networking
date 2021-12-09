@@ -90,10 +90,11 @@ def process_command(cmd_token):
         # Creare dir
         dir_name = utils.system_path(dir_name)
         abs_path = os.path.join(SERVER_DIR, curr_client_id, dir_name)
+        abs_path=utils.get_abs_path(abs_path)
         # Delete directory or file accordingly
         if cmd_token == 'mkdir':
             if not os.path.exists(abs_path):
-                os.mkdir(abs_path)
+                os.makedirs(abs_path)
         elif cmd_token == 'rmdir':
             utils.deep_delete(abs_path)
         #            os.rmdir(abs_path)

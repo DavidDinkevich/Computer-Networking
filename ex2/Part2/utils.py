@@ -2,6 +2,8 @@ import socket
 import os
 
 MSG_LEN_NUM_BYTES = 8
+READ_SPEED = 2 * 2048
+SEND_SPEED = 3 * 2048
 
 
 def remove_file(abs_path):
@@ -24,7 +26,6 @@ def system_path(path):
 
 
 def send_token(socket, args, encode=True):
-    # assert len(args) > 0, "send_token: length of args in send_token must be > 0"
     if encode:
         for arg in args:
             encoded = arg.encode('utf-8')
@@ -33,7 +34,6 @@ def send_token(socket, args, encode=True):
             socket.sendall(len_bytes + encoded)
     # in case its pure data and not files or dirs
     else:
-        assert len(args) == 1, "send_token: encode=False but len(args) != 1"
         socket.sendall(args[0])
         # socket.sendall(SEP_CHAR.encode())
 
@@ -81,10 +81,10 @@ def send_file(my_socket, cmd, full_file_path, relative_path):
         return
 
     with open(full_file_path, 'rb') as f:
-        data = f.read(2048)
+        data = f.read(SEND_SPEED)
         while len(data) > 0:
             send_token(my_socket, [data], encode=False)
-            data = f.read(2048)
+            data = f.read(SEND_SPEED)
 
 
 def rcv_file(my_socket, my_buff, abs_path):
@@ -92,7 +92,7 @@ def rcv_file(my_socket, my_buff, abs_path):
 
     size = int(size)
     while size > 0:
-        chunk_size = min(size, 1024)
+        chunk_size = min(size, READ_SPEED)
         # size -= chunk_size
         my_buff, data = get_token(my_socket, my_buff, num_bytes_to_read=chunk_size)
         # data = my_socket.recv(chunk_size)
@@ -103,29 +103,12 @@ def rcv_file(my_socket, my_buff, abs_path):
 
 
 def write_data(abs_path, data):
-    while True:
-        # in case the file is still open while we are trying to open it
-        try:
-            with open(abs_path, 'ab') as f:
-                f.write(data)
-            return
-        except:
-            pass
+    with open(abs_path, 'ab') as f:
+        f.write(data)
 
 
 def create_file(abs_path):
-    while True:
-        try:
-            with open(abs_path, 'w+') as f:
-                pass
-            return
-        except:
-            pass
-
-
-def create_file(abs_path):
-    abs_abs_path = get_abs_path(abs_path)
-    f = open(abs_abs_path, 'w')
+    f = open(abs_path, 'w')
     f.close()
 
 
