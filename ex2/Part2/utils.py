@@ -4,6 +4,14 @@ import os
 MSG_LEN_NUM_BYTES = 8
 
 
+def system_path(path):
+    # check if the system is Unix and we came from windows
+    if os.name == 'posix':
+        return path.replace('\\', '/')
+    # if we are in windows use python lib func
+    return os.path.normpath(path)
+
+
 def send_token(socket, args, encode=True):
     # assert len(args) > 0, "send_token: length of args in send_token must be > 0"
     if encode:
@@ -70,7 +78,7 @@ def send_file(my_socket, cmd, full_file_path, relative_path):
 
 def rcv_file(my_socket, my_buff, abs_path):
     my_buff, size = get_token(my_socket, my_buff)
-
+    print('Need to download: ', size)
     size = int(size)
     while size > 0:
         chunk_size = min(size, 1024)
@@ -79,23 +87,26 @@ def rcv_file(my_socket, my_buff, abs_path):
         # data = my_socket.recv(chunk_size)
         # Read content and write to file
         size -= len(data)
-
+        print('Expected', chunk_size, ' got ', len(data))
+        print('Remaining:', size)
         write_data(abs_path, data)
 
 
 def write_data(abs_path, data):
-    with open(abs_path, 'ab') as f:
-        f.write(data)
-
-
-def create_file(abs_path):
     while True:
+        # in case the file is still open while we are trying to open it
         try:
-            with open(abs_path, 'w+') as f:
-                pass
+            with open(abs_path, 'ab') as f:
+                f.write(data)
             return
         except:
             pass
+
+
+def create_file(abs_path):
+    abs_abs_path = get_abs_path(abs_path)
+    f = open(abs_abs_path, 'w')
+    f.close()
 
 
 def remove_last_path_element(path):

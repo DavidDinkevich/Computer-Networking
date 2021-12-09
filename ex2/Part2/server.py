@@ -74,9 +74,10 @@ def process_command(cmd_token):
     elif cmd_token == 'mkfile':
         # Name of file
         server_rcv_buff, file_name = utils.get_token(client_socket, server_rcv_buff)
+        file_name=utils.system_path(file_name)
         # Creare file
         # return the normal path without redundant additions between systems.
-        abs_path = os.path.normpath(os.path.join(SERVER_DIR, curr_client_id, file_name))
+        abs_path = os.path.join(SERVER_DIR, curr_client_id, file_name)
         utils.create_file(abs_path)
         # Receive file data
         utils.rcv_file(client_socket, server_rcv_buff, abs_path)
@@ -87,7 +88,8 @@ def process_command(cmd_token):
         # Name of directory/file
         server_rcv_buff, dir_name = utils.get_token(client_socket, server_rcv_buff)
         # Creare dir
-        abs_path = os.path.normpath(os.path.join(SERVER_DIR, curr_client_id, dir_name))
+        dir_name=utils.system_path(dir_name)
+        abs_path = os.path.join(SERVER_DIR, curr_client_id, dir_name)
         # Delete directory or file accordingly
         if cmd_token == 'mkdir':
             if not os.path.exists(abs_path):
@@ -117,9 +119,11 @@ def process_command(cmd_token):
         # Get relative paths of both src and dest
         server_rcv_buff, src_path = utils.get_token(client_socket, server_rcv_buff)
         server_rcv_buff, dest_path = utils.get_token(client_socket, server_rcv_buff)
+        src_path=utils.system_path(src_path)
+        dest_path=utils.system_path(dest_path)
         # Get absolute paths
-        abs_src_path = os.path.normpath(os.path.join(SERVER_DIR, curr_client_id, src_path))
-        abs_dest_path = os.path.normpath(os.path.join(SERVER_DIR, curr_client_id, dest_path))
+        abs_src_path = os.path.join(SERVER_DIR, curr_client_id, src_path)
+        abs_dest_path = os.path.join(SERVER_DIR, curr_client_id, dest_path)
         # Move the files
         # os.renames(abs_src_path, abs_dest_path)
         utils.move_folder(abs_src_path, abs_dest_path)
@@ -133,7 +137,7 @@ def process_command(cmd_token):
 def update_client(send_everything=False):
     # Send all dirs and files (in that order)
     if send_everything:
-        client_folder = os.path.normpath(os.path.join(SERVER_DIR, curr_client_id))
+        client_folder = os.path.join(SERVER_DIR, curr_client_id)
         dirs, files = utils.get_dirs_and_files(client_folder)
         utils.send_all_dirs_and_files(client_socket, dirs, files, client_folder)
 
@@ -144,7 +148,7 @@ def update_client(send_everything=False):
             if change[0] == 'mkfile':
                 abs_file_path = change[1]
                 rel_file_path = abs_file_path[
-                                len(os.path.normpath(os.path.join(SERVER_DIR, curr_client_id))) + len(os.path.sep):]
+                                len(os.path.join(SERVER_DIR, curr_client_id)) + len(os.path.sep):]
                 #                rel_file_path = abs_file_path[len(SERVER_DIR + curr_client_id) + len(os.path.sep):]
                 utils.send_file(client_socket, 'mkfile', abs_file_path, rel_file_path)
             else:
