@@ -20,12 +20,12 @@ def send_token(socket, args, encode=True):
 
 
 def is_dir(relative_path):
-    abs_path = os.path.abspath(relative_path)
+    abs_path = os.path.normpath(os.path.abspath(relative_path))
     return os.path.isdir(abs_path)
 
 
 def get_abs_path(path):
-    return os.path.abspath(path)
+    return os.path.normpath(os.path.abspath(path))
 
 
 def get_token(socket, buff, num_bytes_to_read=-1):
@@ -73,7 +73,7 @@ def rcv_file(my_socket, my_buff, abs_path):
 
     size = int(size)
     while size > 0:
-        chunk_size = size
+        chunk_size = min(size, 1024)
         # size -= chunk_size
         my_buff, data = get_token(my_socket, my_buff, num_bytes_to_read=chunk_size)
         # data = my_socket.recv(chunk_size)

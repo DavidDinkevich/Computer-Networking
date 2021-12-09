@@ -205,7 +205,7 @@ def handle_server_directive(cmd_token):
         # Name of directory/file
         client_rcv_buff, file_name = utils.get_token(client_socket, client_rcv_buff)
         # Creare file
-        abs_path = os.path.join(client_dir, file_name)
+        abs_path = os.path.normpath(os.path.join(client_dir, file_name))
         utils.create_file(abs_path)
         # Receive file data
         utils.rcv_file(client_socket, client_rcv_buff, abs_path)
@@ -216,7 +216,7 @@ def handle_server_directive(cmd_token):
         # Name of directory/file
         client_rcv_buff, dir_name = utils.get_token(client_socket, client_rcv_buff)
         # Creare dir
-        abs_path = os.path.join(client_dir, dir_name)
+        abs_path = os.path.normpath(os.path.join(client_dir, dir_name))
         # Delete directory or file accordingly
         if cmd_token == 'mkdir':
             if not os.path.exists(abs_path):
@@ -241,8 +241,8 @@ def handle_server_directive(cmd_token):
         client_rcv_buff, src_path = utils.get_token(client_socket, client_rcv_buff)
         client_rcv_buff, dest_path = utils.get_token(client_socket, client_rcv_buff)
         # Get absolute paths
-        abs_src_path = os.path.join(client_dir, src_path)
-        abs_dest_path = os.path.join(client_dir, dest_path)
+        abs_src_path = os.path.normpath(os.path.join(client_dir, src_path))
+        abs_dest_path = os.path.normpath(os.path.join(client_dir, dest_path))
         abs_abs_path = utils.get_abs_path(abs_dest_path)
         # Check if move file is needed
         if not os.path.exists(abs_abs_path):
@@ -274,7 +274,7 @@ def on_start_up():
         sys.exit(1)
 
     # Make folder if doesn't exist
-    if not os.path.exists(client_dir):
+    if not os.path.exists(os.path.normpath(client_dir)):
         os.makedirs(client_dir)
 
     open_connection()
