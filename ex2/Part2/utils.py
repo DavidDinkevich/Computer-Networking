@@ -89,8 +89,13 @@ def write_data(abs_path, data):
 
 
 def create_file(abs_path):
-    f = open(abs_path, 'w')
-    f.close()
+    while True:
+        try:
+            with open(abs_path, 'w+') as f:
+                pass
+            return
+        except:
+            pass
 
 
 def remove_last_path_element(path):
