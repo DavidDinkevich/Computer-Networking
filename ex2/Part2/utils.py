@@ -26,6 +26,7 @@ def system_path(path):
 
 
 def send_token(socket, args, encode=True):
+    # assert len(args) > 0, "send_token: length of args in send_token must be > 0"
     if encode:
         for arg in args:
             encoded = arg.encode('utf-8')
